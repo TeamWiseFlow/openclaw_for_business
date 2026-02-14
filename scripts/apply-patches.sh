@@ -17,7 +17,7 @@ cd openclaw
 for patch in ../$PATCHES_DIR/*.patch; do
   if [ -f "$patch" ]; then
     echo "  → $(basename "$patch")"
-    git apply --whitespace=fix "$patch" || {
+    git apply --ignore-whitespace --whitespace=fix "$patch" || {
       echo "❌ Failed to apply $(basename "$patch")"
       exit 1
     }

@@ -29,21 +29,50 @@ openclaw_for_business/
 
 ## 快速开始
 
+### WSL2 环境（Windows 用户推荐）
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/TeamWiseFlow/openclaw_for_business.git
+cd openclaw_for_business
+git clone https://github.com/openclaw/openclaw.git
+
+# 2. 一键配置 WSL2 环境
+./scripts/setup-wsl2.sh
+
+# 3. 安装依赖
+cd openclaw
+pnpm install
+
+# 4. 启动开发环境
+cd ..
+./scripts/dev.sh gateway
+
+# 5. 在 Windows 浏览器中访问显示的 URL（通常是 http://172.x.x.x:18789）
+```
+
+**WSL2 特别说明**：
+- ✅ 自动检测并显示正确的访问地址
+- ✅ 自动处理行尾符问题
+- ✅ 需要在 Windows 浏览器中访问（不是 WSL2 内部）
+- ⚠️ 确保 Windows 防火墙允许端口 18789
+
 ### 开发环境
 
 **适合**：日常开发、调试、修改代码
 
 ```bash
 # 1. 克隆项目
-git clone <your-repo>
+git clone https://github.com/TeamWiseFlow/openclaw_for_business.git
 cd openclaw_for_business
+git clone https://github.com/openclaw/openclaw.git
 
 # 2. 安装依赖
 cd openclaw
 pnpm install
-cd ..
 
 # 3. 启动开发环境（前台运行，实时编译）
+cd ..
 ./scripts/dev.sh gateway
 
 # 4. 浏览器启动后，访问 http://127.0.0.1:18789 即可使用(如果你未指定端口)

@@ -28,10 +28,26 @@ if [ ! -f "$OPENCLAW_CONFIG_PATH" ]; then
   fi
 fi
 
-echo "🚀 Starting OpenClaw for Business..."
+# 应用补丁（如果有）
+if [ -d "patches" ] && [ "$(ls -A patches/*.patch 2>/dev/null)" ]; then
+  ./scripts/apply-patches.sh
+fi
+
+# 检测 WSL2 环境并获取访问地址
+if grep -qi microsoft /proc/version 2>/dev/null; then
+  WSL_HOST=$(ip route show | grep -i default | awk '{ print $3}')
+  ACCESS_URL="http://${WSL_HOST}:18789"
+  ENV_NOTE="(WSL2)"
+else
+  ACCESS_URL="http://127.0.0.1:18789"
+  ENV_NOTE=""
+fi
+
+echo "🚀 Starting OpenClaw for Business... $ENV_NOTE"
 echo "   Workspace: $WORKSPACE_DIR"
 echo "   Config: $OPENCLAW_CONFIG_PATH"
 echo "   State: $OPENCLAW_STATE_DIR"
+echo "   Access: $ACCESS_URL"
 echo ""
 
 cd "$PROJECT_ROOT/openclaw"

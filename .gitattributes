@@ -1,0 +1,12 @@
+# 确保脚本文件在所有平台使用 LF
+*.sh text eol=lf
+*.bash text eol=lf
+
+# 补丁文件使用 LF
+*.patch text eol=lf
+
+# JSON 配置文件
+*.json text eol=lf
+
+# Markdown 文档
+*.md text eol=lf
