@@ -16,10 +16,10 @@
 ```
 openclaw_for_business/
 ├── openclaw/              # 上游仓库（git clone）
-├── workspace/             # 运行时工作区（不提交）
+├── .openclaw-data/        # 运行时数据（不提交）
 │   ├── config/           # 配置文件
-│   ├── data/             # 状态数据
-│   └── agents/           # Agent 工作区
+│   ├── workspace/        # Agent 工作区（OpenClaw 自动创建）
+│   └── ...               # 其他运行时数据（OpenClaw 自动创建）
 ├── config-templates/      # 配置模板（开箱即用）
 ├── patches/               # 业务补丁
 ├── extensions/            # 业务扩展插件
@@ -122,7 +122,7 @@ pnpm openclaw daemon uninstall
 - ✅ 崩溃自动重启
 - ✅ 性能更好（预编译）
 
-所有配置和数据都在 `workspace/` 目录，不会影响 `~/.openclaw`。
+所有配置和数据都在 `.openclaw-data/` 目录，不会影响 `~/.openclaw`。
 
 ### 常用命令
 
@@ -153,8 +153,8 @@ pnpm openclaw daemon uninstall
 通过环境变量将 OpenClaw 的所有路径指向项目内：
 
 ```bash
-OPENCLAW_STATE_DIR=./workspace/data
-OPENCLAW_CONFIG_PATH=./workspace/config/openclaw.json
+OPENCLAW_STATE_DIR=./.openclaw-data
+OPENCLAW_CONFIG_PATH=./.openclaw-data/config/openclaw.json
 ```
 
 **好处：**

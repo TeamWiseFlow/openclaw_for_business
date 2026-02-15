@@ -5,18 +5,15 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-WORKSPACE_DIR="$PROJECT_ROOT/workspace"
+DATA_DIR="$PROJECT_ROOT/.openclaw-data"
 
-# 创建工作区目录结构
-mkdir -p "$WORKSPACE_DIR"/{config,data,logs,sessions,agents}
+# 创建配置目录
+mkdir -p "$DATA_DIR/config"
 
 # 设置环境变量，将 OpenClaw 的所有路径指向项目内
-export OPENCLAW_STATE_DIR="$WORKSPACE_DIR/data"
-export OPENCLAW_CONFIG_PATH="$WORKSPACE_DIR/config/openclaw.json"
-export OPENCLAW_OAUTH_DIR="$WORKSPACE_DIR/data/credentials"
-
-# 日志目录（通过 STATE_DIR 自动派生）
-# OpenClaw 会在 STATE_DIR 下创建 logs 目录
+export OPENCLAW_STATE_DIR="$DATA_DIR"
+export OPENCLAW_CONFIG_PATH="$DATA_DIR/config/openclaw.json"
+export OPENCLAW_OAUTH_DIR="$DATA_DIR/credentials"
 
 # 如果配置文件不存在，从模板创建
 if [ ! -f "$OPENCLAW_CONFIG_PATH" ]; then
@@ -44,9 +41,8 @@ else
 fi
 
 echo "🚀 Starting OpenClaw for Business... $ENV_NOTE"
-echo "   Workspace: $WORKSPACE_DIR"
+echo "   Data: $DATA_DIR"
 echo "   Config: $OPENCLAW_CONFIG_PATH"
-echo "   State: $OPENCLAW_STATE_DIR"
 echo "   Access: $ACCESS_URL"
 echo ""
 

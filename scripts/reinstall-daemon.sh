@@ -5,14 +5,14 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-WORKSPACE_DIR="$PROJECT_ROOT/workspace"
+DATA_DIR="$PROJECT_ROOT/.openclaw-data"
 
-export OPENCLAW_STATE_DIR="$WORKSPACE_DIR/data"
-export OPENCLAW_CONFIG_PATH="$WORKSPACE_DIR/config/openclaw.json"
-export OPENCLAW_OAUTH_DIR="$WORKSPACE_DIR/data/credentials"
+export OPENCLAW_STATE_DIR="$DATA_DIR"
+export OPENCLAW_CONFIG_PATH="$DATA_DIR/config/openclaw.json"
+export OPENCLAW_OAUTH_DIR="$DATA_DIR/credentials"
 
 echo "🔧 Reinstalling Gateway Daemon..."
-echo "   State: $OPENCLAW_STATE_DIR"
+echo "   Data: $OPENCLAW_STATE_DIR"
 
 # 应用补丁（如果有）
 if [ -d "patches" ] && [ "$(ls -A patches/*.patch 2>/dev/null)" ]; then
