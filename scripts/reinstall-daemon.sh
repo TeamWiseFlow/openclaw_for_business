@@ -10,9 +10,9 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 echo "🔧 Reinstalling Gateway Daemon..."
 echo "   Data: ~/.openclaw"
 
-# 应用补丁（如果有）
-if [ -d "patches" ] && [ "$(ls -A patches/*.patch 2>/dev/null)" ]; then
-  ./scripts/apply-patches.sh
+# 应用 addons（如果有）
+if [ -d "$PROJECT_ROOT/addons" ] && [ -n "$(ls -A "$PROJECT_ROOT/addons" 2>/dev/null)" ]; then
+  "$PROJECT_ROOT/scripts/apply-addons.sh"
 fi
 
 cd "$PROJECT_ROOT/openclaw"

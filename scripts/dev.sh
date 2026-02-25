@@ -18,9 +18,9 @@ if [ ! -f "$CONFIG_PATH" ]; then
   fi
 fi
 
-# Apply git patches if any exist
-if [ -d "$PROJECT_ROOT/patches" ] && ls "$PROJECT_ROOT/patches"/*.patch 2>/dev/null | grep -q .; then
-  "$PROJECT_ROOT/scripts/apply-patches.sh"
+# Apply addons (overrides + patches + skills)
+if [ -d "$PROJECT_ROOT/addons" ] && [ -n "$(ls -A "$PROJECT_ROOT/addons" 2>/dev/null)" ]; then
+  "$PROJECT_ROOT/scripts/apply-addons.sh"
 fi
 
 # 检测 WSL2 环境并获取访问地址
