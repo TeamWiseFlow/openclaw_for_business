@@ -1,0 +1,16 @@
+{
+  "agent": {
+    "id": "main",
+    "name": "Main Agent"
+  },
+  "feishu": {
+    "appId": "",
+    "appSecretPath": "~/.openclaw/secrets/main_feishu_secret"
+  },
+  "gateway": {
+    "host": "127.0.0.1",
+    "port": 18789
+  },
+  "thinkingThresholdMs": 2500,
+  "debug": false
+}

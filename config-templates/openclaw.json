@@ -47,8 +47,25 @@
       "subagents": {
         "maxConcurrent": 8
       }
-    }
+    },
+    "list": [
+      {
+        "id": "main",
+        "default": true,
+        "name": "Main Agent",
+        "workspace": "~/.openclaw/workspace-main",
+        "subagents": {
+          "allowAgents": ["main", "hrbp"]
+        }
+      },
+      {
+        "id": "hrbp",
+        "name": "HRBP",
+        "workspace": "~/.openclaw/workspace-hrbp"
+      }
+    ]
   },
+  "bindings": [],
   "messages": {
     "ackReactionScope": "group-mentions"
   },

@@ -31,7 +31,8 @@
 
 | Addon | 说明 | 仓库 |
 |-------|------|------|
-| [wiseflow](https://github.com/TeamWiseFlow/wiseflow) | 浏览器反检测 + 互联网能力增强 | `addon/` 目录 |
+| [wiseflow](https://github.com/TeamWiseFlow/wiseflow) | 浏览器反检测 + 互联网能力增强 | `addons/` 目录 |
+| hrbp-system | 多 Agent 管理系统（混合路由 + HRBP 招聘/调岗/解雇） | 内置 |
 
 > 欢迎贡献更多 addon！参见下方 [Addon 开发](#addon-开发) 章节。
 
@@ -41,11 +42,19 @@
 openclaw_for_business/
 ├── openclaw/              # 上游仓库（git clone，禁止直接修改）
 ├── addons/                # addon 安装目录（运行时由 apply-addons.sh 扫描）
-├── config-templates/      # 配置模板（开箱即用的最佳��践）
-│   └── openclaw.json     # 默认配置模板
+│   └── hrbp-system/      # 多 Agent 管理系统 addon
+├── config-templates/      # 配置模板（开箱即用的最佳实践）
+│   ├── openclaw.json     # 默认配置模板
+│   └── hrbp-system/      # HRBP 系统模板（workspace、共享规则、角色参考）
+├── bridge/               # 飞书 Bridge（飞书 Bot ↔ Gateway 连接器）
 ├── scripts/              # 工具脚本
 │   ├── dev.sh            # 开发模式启动
 │   ├── apply-addons.sh   # 通用 addon 加载器
+│   ├── setup-hrbp.sh     # HRBP 系统安装
+│   ├── add-agent.sh      # 注册新 Agent
+│   ├── modify-agent.sh   # 修改 Agent 渠道绑定
+│   ├── remove-agent.sh   # 移除 Agent
+│   ���── list-agents.sh    # 列出所有 Agent
 │   ├── update-upstream.sh # 更新上游代码
 │   ├── reinstall-daemon.sh # 生产模式安装后台服务
 │   ├── generate-patch.sh  # 生成补丁（给 addon 开发者用）
@@ -121,6 +130,13 @@ cd openclaw && pnpm build && cd ..
 ./scripts/dev.sh cli config           # CLI 操作
 ./scripts/update-upstream.sh          # 更新上游 + 重新应用 addon
 ./scripts/reinstall-daemon.sh         # 生产部署
+
+# HRBP 多 Agent 管理
+./scripts/setup-hrbp.sh              # 首次安装 HRBP 系统
+./scripts/list-agents.sh             # 列出所有 Agent
+./scripts/add-agent.sh <id>          # 注册新 Agent
+./scripts/modify-agent.sh <id> --bind wechat:wx_xxx  # 添加渠道绑定
+./scripts/remove-agent.sh <id>       # 移除 Agent（workspace 归档）
 ```
 
 ## Addon 开发
@@ -144,6 +160,8 @@ addons/<name>/
 
 ## 文档
 
+- [HRBP 多 Agent 系统](docs/hrbp-system.md) - 架构设计和组件说明
+- [HRBP 快速上手](docs/quick-start.md) - 安装和使用指南
 - [OpenClaw 分析](docs/introduce_to_clawd_by_claude.md) - 上游代码架构分析
 
 ## 许可证
