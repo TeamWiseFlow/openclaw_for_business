@@ -1,7 +1,7 @@
 # OpenClaw 上游仓库（通过脚本管理）
 openclaw/
 
-# 第三方 addon（用���自行安装，不跟踪）
+# 第三方 addon（用户自行安装，不跟踪）
 addons/*/
 !addons/README.md
 

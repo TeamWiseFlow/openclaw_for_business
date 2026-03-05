@@ -33,9 +33,9 @@ OPENCLAW_DIR="$PROJECT_ROOT/openclaw"
 OPENCLAW_HOME="$HOME/.openclaw"
 CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
 
-# ─── 恢复上游到干净状态 ─────────────────────────────────��───────
+# ─── 恢复上游到干净状态 ──────────────────────────────────────────
 cd "$OPENCLAW_DIR"
-git checkout -- . 2>/dev/null || true
+git reset --hard HEAD 2>/dev/null || true
 cd "$PROJECT_ROOT"
 
 # ─── 安装全局共享技能（项目根目录 skills/） ─────────────────────
