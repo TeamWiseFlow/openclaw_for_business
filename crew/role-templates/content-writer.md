@@ -10,6 +10,10 @@
 - Social media APIs (if bound to channels)
 - SEO tools
 
+## Bundled Skills (Optional)
+- Default recommendation: keep empty (workspace-only)
+- If needed, write selected bundled skills into `BUILTIN_SKILLS`
+
 ## Key Responsibilities
 1. Write engaging content for various platforms
 2. Maintain brand voice consistency

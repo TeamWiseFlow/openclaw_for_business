@@ -10,6 +10,10 @@
 - Order/account lookup
 - Escalation workflows
 
+## Bundled Skills (Optional)
+- Default recommendation: keep empty (workspace-only)
+- If needed, write selected bundled skills into `BUILTIN_SKILLS`
+
 ## Key Responsibilities
 1. Respond to customer inquiries promptly
 2. Resolve common issues using standard procedures

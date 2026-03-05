@@ -10,6 +10,10 @@
 - Calendar/scheduling, notification systems
 - Reporting dashboards
 
+## Bundled Skills (Optional)
+- Default recommendation: keep empty (workspace-only)
+- If needed, write selected bundled skills into `BUILTIN_SKILLS`
+
 ## Key Responsibilities
 1. Track and coordinate ongoing projects
 2. Optimize workflows and processes

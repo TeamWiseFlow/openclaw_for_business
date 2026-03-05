@@ -46,7 +46,7 @@ openclaw_for_business/
 ├── crew/                  # 多 Agent 系统（内置核心）
 │   ├── shared/            # 共享协议（RULES.md、TEMPLATES.md）
 │   ├── workspaces/        # Agent workspace 模板（main + hrbp）
-│   │   └── hrbp/skills/   # HRBP 专属技能（recruit/modify/remove/usage）
+│   │   └── hrbp/skills/   # HRBP 专属技能（recruit/modify/remove/list/usage）
 │   └── role-templates/    # 角色参考模板（供 HRBP 招聘时使用）
 ├── skills/                # 全局共享技能（所有 Agent 可见）
 ├── addons/                # 第三方 addon 安装目录（不跟踪子目录）
@@ -56,10 +56,6 @@ openclaw_for_business/
 │   ├── dev.sh             # 开发模式启动（自动安装 Agent 系统 + addon）
 │   ├── setup-crew.sh      # 多 Agent 系统安装（幂等）
 │   ├── apply-addons.sh    # 全局 skills + addon 加载器
-│   ├── add-agent.sh       # 注册新 Agent
-│   ├── modify-agent.sh    # 修改 Agent 渠道绑定
-│   ├── remove-agent.sh    # 移除 Agent
-│   ├── list-agents.sh     # 列出所有 Agent
 │   ├── update-upstream.sh # 更新上游代码
 │   ├── reinstall-daemon.sh # 生产模式安装后台服务
 │   ├── generate-patch.sh  # 生成补丁（给 addon 开发者用）
@@ -138,12 +134,12 @@ cd openclaw && pnpm build && cd ..
 ./scripts/reinstall-daemon.sh         # 生产部署
 
 # Agent 管理
-./scripts/setup-crew.sh              # 手动安装/重装 Agent 系统
-./scripts/list-agents.sh             # 列出所有 Agent
-./scripts/add-agent.sh <id>          # 注册新 Agent
-./scripts/modify-agent.sh <id> --bind wechat:wx_xxx  # 添加渠道绑定
-./scripts/remove-agent.sh <id>       # 移除 Agent（workspace 归档）
+./scripts/setup-crew.sh               # 手动安装/重装 Agent 系统
+./scripts/setup-crew.sh --force       # 覆盖已有 workspace
+./scripts/setup-crew.sh --builtin-skills hrbp:browser-guide
 ```
+
+Agent 生命周期（新增/调岗/移除）由 HRBP skill 执行，内部脚本位于 `crew/workspaces/hrbp/skills/*/scripts/`，不作为人类用户主入口。
 
 ## Addon 开发
 
@@ -155,7 +151,7 @@ addons/<name>/
 ├── overrides.sh        # 可选：pnpm overrides / 依赖替换
 ├── patches/*.patch     # 可选：git patch 代码改动
 ├── skills/*/SKILL.md   # 可选：自定义技能
-└── agents/*/           # 可选：预制 Agent（workspace 模板，由 HRBP 管理）
+└── crew/*/             # 可选：预制 Agent（workspace 模板，由 HRBP 管理）
 ```
 
 四层加载机制按稳定性递减排列：

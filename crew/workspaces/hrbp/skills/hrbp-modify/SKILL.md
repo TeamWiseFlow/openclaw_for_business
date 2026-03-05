@@ -32,8 +32,8 @@ After user confirms:
 
 1. **Workspace files** (L2): Edit the relevant .md files in `~/.openclaw/workspace-<agent-id>/`
 2. **Channel bindings** (L3): If binding changes are needed, run:
-   - Add binding: `./scripts/modify-agent.sh <agent-id> --bind <channel>:<accountId>`
-   - Remove binding: `./scripts/modify-agent.sh <agent-id> --unbind <channel>`
+   - Add binding: `bash ./skills/hrbp-modify/scripts/modify-agent.sh <agent-id> --bind <channel>:<accountId>`
+   - Remove binding: `bash ./skills/hrbp-modify/scripts/modify-agent.sh <agent-id> --unbind <channel>`
 3. Update Main Agent's `MEMORY.md` roster if specialty or route mode changed
 
 ### Step 5: Closeout

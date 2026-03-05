@@ -1,6 +1,6 @@
 #!/bin/bash
 # remove-agent.sh - 从 openclaw.json 移除 Agent（workspace 归档不删除）
-# 用法: ./scripts/remove-agent.sh <agent-id>
+# 用法: bash ./skills/hrbp-remove/scripts/remove-agent.sh <agent-id>
 set -e
 
 OPENCLAW_HOME="$HOME/.openclaw"
@@ -83,7 +83,9 @@ fi
 MAIN_MEMORY="$OPENCLAW_HOME/workspace-main/MEMORY.md"
 if [ -f "$MAIN_MEMORY" ]; then
   if grep -q "^| $AGENT_ID " "$MAIN_MEMORY" 2>/dev/null; then
-    sed -i "/^| $AGENT_ID /d" "$MAIN_MEMORY"
+    TMP_MEMORY="$(mktemp "${MAIN_MEMORY}.tmp.XXXXXX")"
+    grep -v "^| $AGENT_ID " "$MAIN_MEMORY" > "$TMP_MEMORY"
+    mv "$TMP_MEMORY" "$MAIN_MEMORY"
     echo "  ✅ Removed from Main Agent MEMORY.md roster"
   fi
 fi

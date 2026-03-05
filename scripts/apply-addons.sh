@@ -2,7 +2,7 @@
 # apply-addons.sh - 全局 skills 安装 + 通用 addon 加载器
 #
 # 技能两级体系：
-#   - 全局 skills: skills/ (项目根目录) → 安装到 openclaw/skills/（所有 Agent 可见）
+#   - 全局 skills: skills/ (项目根目录) → 安装到 openclaw/skills/（默认只有 main agent 会启用，其他 crew 需要额外配置）
 #   - Agent 专属 skills: crew/workspaces/<agent>/skills/ → 已由 setup-crew.sh 安装到 workspace
 #
 # 每次运行时：
@@ -32,6 +32,7 @@ ADDONS_DIR="$PROJECT_ROOT/addons"
 OPENCLAW_DIR="$PROJECT_ROOT/openclaw"
 OPENCLAW_HOME="$HOME/.openclaw"
 CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
+HRBP_ADD_AGENT_SCRIPT="$PROJECT_ROOT/crew/workspaces/hrbp/skills/hrbp-recruit/scripts/add-agent.sh"
 
 # ─── 恢复上游到干净状态 ──────────────────────────────────────────
 cd "$OPENCLAW_DIR"
@@ -127,6 +128,9 @@ for addon_dir in "$ADDONS_DIR"/*/; do
       else
         mkdir -p "$dest"
         cp "${agent_ws}"*.md "$dest/"
+        if [ -f "${agent_ws}BUILTIN_SKILLS" ]; then
+          cp "${agent_ws}BUILTIN_SKILLS" "$dest/"
+        fi
         # 复制共享协议
         if [ -d "$CREW_DIR/shared" ]; then
           cp "$CREW_DIR/shared/"*.md "$dest/"
@@ -144,7 +148,11 @@ for addon_dir in "$ADDONS_DIR"/*/; do
           const c = JSON.parse(require('fs').readFileSync('$CONFIG_PATH','utf8'));
           process.exit((c.agents?.list || []).some(a => a.id === '$agent_id') ? 0 : 1);
         " 2>/dev/null; then
-          "$PROJECT_ROOT/scripts/add-agent.sh" "$agent_id"
+          if [ ! -f "$HRBP_ADD_AGENT_SCRIPT" ]; then
+            echo "    ❌ HRBP add-agent script not found: $HRBP_ADD_AGENT_SCRIPT"
+            exit 1
+          fi
+          "$HRBP_ADD_AGENT_SCRIPT" "$agent_id"
           echo "    ✅ agent $agent_id registered"
         fi
       fi

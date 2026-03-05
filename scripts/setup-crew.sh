@@ -1,16 +1,124 @@
 #!/bin/bash
 # setup-crew.sh - 多 Agent 系统安装脚本
-# 将 crew/ 中的 workspace 模板、共享协议、角色模板部署�� ~/.openclaw/
+# 将 crew/ 中的 workspace 模板、共享协议、角色模板部署到 ~/.openclaw/
 # 幂等设计：已存在的 workspace 不会覆盖（除非 --force）
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CREW_DIR="$PROJECT_ROOT/crew"
 OPENCLAW_HOME="$HOME/.openclaw"
 CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
 FORCE=false
 
-[ "$1" = "--force" ] && FORCE=true
+source "$SCRIPT_DIR/lib/agent-skills.sh"
+
+BUILTIN_OVERRIDES=""
+
+usage() {
+  echo "Usage: $0 [--force] [--builtin-skills <agent-id>:<skill1,skill2|all>]"
+  echo ""
+  echo "Options:"
+  echo "  --force                               Overwrite existing workspace files"
+  echo "  --builtin-skills <agent-id>:<skills> Override bundled skills for one agent"
+  echo ""
+  echo "Examples:"
+  echo "  $0"
+  echo "  $0 --force"
+  echo "  $0 --builtin-skills hrbp:browser-guide"
+  echo "  $0 --builtin-skills main:all --builtin-skills hrbp:browser-guide,summarize"
+  exit 1
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --force)
+      FORCE=true
+      shift
+      ;;
+    --builtin-skills)
+      [ -z "$2" ] && { echo "❌ --builtin-skills requires <agent-id>:<skills>"; usage; }
+      case "$2" in
+        *:*)
+          BUILTIN_OVERRIDES="${BUILTIN_OVERRIDES}
+$2"
+          ;;
+        *)
+          echo "❌ Invalid format for --builtin-skills: $2"
+          echo "   Expected: <agent-id>:<skill1,skill2|all>"
+          exit 1
+          ;;
+      esac
+      shift 2
+      ;;
+    *)
+      echo "❌ Unknown option: $1"
+      usage
+      ;;
+  esac
+done
+
+resolve_builtin_override_for_agent() {
+  local agent_id="$1"
+  local line=""
+  local key=""
+  local value=""
+
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    key="${line%%:*}"
+    value="${line#*:}"
+    if [ "$key" = "$agent_id" ]; then
+      printf '%s\n' "$value"
+      return
+    fi
+  done <<< "$BUILTIN_OVERRIDES"
+}
+
+sync_agent_skill_filter() {
+  local agent_id="$1"
+  local agent_override=""
+  agent_override="$(resolve_builtin_override_for_agent "$agent_id")"
+
+  local workspace_dir=""
+  workspace_dir="$(node -e "
+    const fs = require('fs');
+    const c = JSON.parse(fs.readFileSync('$CONFIG_PATH', 'utf8'));
+    const agent = (c.agents?.list || []).find((entry) => entry.id === '$agent_id');
+    const configured = typeof agent?.workspace === 'string' && agent.workspace.trim()
+      ? agent.workspace.trim()
+      : '~/.openclaw/workspace-$agent_id';
+    console.log(configured.replace(/^~(?=\\/|$)/, process.env.HOME));
+  " 2>/dev/null)"
+
+  if [ -z "$workspace_dir" ] || [ ! -d "$workspace_dir" ]; then
+    echo "  ⚠️  workspace for agent '$agent_id' not found, skip skill filter sync"
+    return
+  fi
+
+  local builtin_file="$workspace_dir/BUILTIN_SKILLS"
+  local skills_json=""
+  skills_json="$(resolve_agent_skills_json \
+    "$agent_id" \
+    "$workspace_dir" \
+    "$agent_override" \
+    "$builtin_file" \
+    "$PROJECT_ROOT")"
+
+  AGENT_ID="$agent_id" AGENT_SKILLS_JSON="$skills_json" node -e "
+    const fs = require('fs');
+    const c = JSON.parse(fs.readFileSync('$CONFIG_PATH', 'utf8'));
+    const list = c.agents?.list || [];
+    const idx = list.findIndex((entry) => entry.id === process.env.AGENT_ID);
+    if (idx >= 0) {
+      list[idx] = {
+        ...list[idx],
+        skills: JSON.parse(process.env.AGENT_SKILLS_JSON || '[]'),
+      };
+      fs.writeFileSync('$CONFIG_PATH', JSON.stringify(c, null, 2) + '\\n');
+    }
+  "
+}
 
 if [ ! -d "$CREW_DIR" ]; then
   echo "❌ crew/ directory not found at $CREW_DIR"
@@ -32,6 +140,9 @@ for agent_dir in "$CREW_DIR"/workspaces/*/; do
 
   mkdir -p "$dest"
   cp "$agent_dir"*.md "$dest/"
+  if [ -f "$agent_dir/BUILTIN_SKILLS" ]; then
+    cp "$agent_dir/BUILTIN_SKILLS" "$dest/"
+  fi
   # 复制 Agent 专属 skills（���有）
   if [ -d "$agent_dir/skills" ]; then
     cp -r "$agent_dir/skills" "$dest/"
@@ -58,44 +169,89 @@ if [ -d "$CREW_DIR/role-templates" ]; then
   echo "  ✅ Role templates installed to $ROLE_DEST"
 fi
 
-# ─── 4. 更新 openclaw.json（如果 agents.list 尚未配置） ──────────
+# ─── 4. 更新 openclaw.json（合并 main/hrbp + skills 白名单） ──────
 if [ -f "$CONFIG_PATH" ]; then
-  if node -e "
-    const c = JSON.parse(require('fs').readFileSync('$CONFIG_PATH','utf8'));
-    process.exit(c.agents?.list?.length > 0 ? 0 : 1);
-  " 2>/dev/null; then
-    echo "  ⚠️  agents.list already configured in openclaw.json, skipping"
-  else
-    echo "  📝 Merging agent config into openclaw.json..."
-    node -e "
-      const fs = require('fs');
-      const c = JSON.parse(fs.readFileSync('$CONFIG_PATH','utf8'));
-      if (!c.agents) c.agents = {};
-      c.agents.list = [
-        {
-          id: 'main',
-          default: true,
-          name: 'Main Agent',
-          workspace: '~/.openclaw/workspace-main',
-          subagents: { allowAgents: ['main', 'hrbp'] }
+  echo "  📝 Merging agent config into openclaw.json..."
+
+  MAIN_OVERRIDE="$(resolve_builtin_override_for_agent "main")"
+  HRBP_OVERRIDE="$(resolve_builtin_override_for_agent "hrbp")"
+
+  MAIN_SKILLS_JSON="$(resolve_agent_skills_json \
+    "main" \
+    "$OPENCLAW_HOME/workspace-main" \
+    "$MAIN_OVERRIDE" \
+    "$OPENCLAW_HOME/workspace-main/BUILTIN_SKILLS" \
+    "$PROJECT_ROOT")"
+  HRBP_SKILLS_JSON="$(resolve_agent_skills_json \
+    "hrbp" \
+    "$OPENCLAW_HOME/workspace-hrbp" \
+    "$HRBP_OVERRIDE" \
+    "$OPENCLAW_HOME/workspace-hrbp/BUILTIN_SKILLS" \
+    "$PROJECT_ROOT")"
+
+  MAIN_SKILLS_JSON="$MAIN_SKILLS_JSON" HRBP_SKILLS_JSON="$HRBP_SKILLS_JSON" node -e "
+    const fs = require('fs');
+    const c = JSON.parse(fs.readFileSync('$CONFIG_PATH', 'utf8'));
+    const mainSkills = JSON.parse(process.env.MAIN_SKILLS_JSON || '[]');
+    const hrbpSkills = JSON.parse(process.env.HRBP_SKILLS_JSON || '[]');
+
+    if (!c.agents) c.agents = {};
+    if (!Array.isArray(c.agents.list)) c.agents.list = [];
+
+    const upsertAgent = (id, buildNext) => {
+      const idx = c.agents.list.findIndex((entry) => entry.id === id);
+      const prev = idx >= 0 ? c.agents.list[idx] : {};
+      const next = buildNext(prev);
+      if (idx >= 0) c.agents.list[idx] = next;
+      else c.agents.list.push(next);
+    };
+
+    upsertAgent('main', (prev) => {
+      const allowAgents = Array.isArray(prev?.subagents?.allowAgents) ? prev.subagents.allowAgents : [];
+      const mergedAllowAgents = Array.from(new Set([...allowAgents, 'main', 'hrbp']));
+      return {
+        ...prev,
+        id: 'main',
+        default: prev.default ?? true,
+        name: prev.name || 'Main Agent',
+        workspace: prev.workspace || '~/.openclaw/workspace-main',
+        skills: mainSkills,
+        subagents: {
+          ...(prev.subagents || {}),
+          allowAgents: mergedAllowAgents,
         },
-        {
-          id: 'hrbp',
-          name: 'HRBP',
-          workspace: '~/.openclaw/workspace-hrbp'
-        }
+      };
+    });
+
+    upsertAgent('hrbp', (prev) => ({
+      ...prev,
+      id: 'hrbp',
+      name: prev.name || 'HRBP',
+      workspace: prev.workspace || '~/.openclaw/workspace-hrbp',
+      skills: hrbpSkills,
+    }));
+
+    // 配置飞书多账户 -> Agent 绑定（模式 B：渠道直连）
+    if (!Array.isArray(c.bindings) || c.bindings.length === 0) {
+      c.bindings = [
+        { agentId: 'main', comment: 'main-bot -> Main Agent', match: { channel: 'feishu', accountId: 'main-bot' } },
+        { agentId: 'hrbp', comment: 'hrbp-bot -> HRBP Agent', match: { channel: 'feishu', accountId: 'hrbp-bot' } }
       ];
-      // 配置飞书多账户 -> Agent 绑定（模式 B：渠道直连）
-      if (!c.bindings || c.bindings.length === 0) {
-        c.bindings = [
-          { agentId: 'main', comment: 'main-bot -> Main Agent', match: { channel: 'feishu', accountId: 'main-bot' } },
-          { agentId: 'hrbp', comment: 'hrbp-bot -> HRBP Agent', match: { channel: 'feishu', accountId: 'hrbp-bot' } }
-        ];
-      }
-      fs.writeFileSync('$CONFIG_PATH', JSON.stringify(c, null, 2) + '\n');
-    "
-    echo "  ✅ openclaw.json updated"
-  fi
+    }
+
+    fs.writeFileSync('$CONFIG_PATH', JSON.stringify(c, null, 2) + '\\n');
+  "
+  AGENT_IDS="$(node -e "
+    const fs = require('fs');
+    const c = JSON.parse(fs.readFileSync('$CONFIG_PATH', 'utf8'));
+    console.log((c.agents?.list || []).map((entry) => entry.id).join('\\n'));
+  " 2>/dev/null)"
+  while IFS= read -r agent_id; do
+    [ -n "$agent_id" ] || continue
+    sync_agent_skill_filter "$agent_id"
+  done <<< "$AGENT_IDS"
+  echo "  ✅ Agent skills filters synchronized"
+  echo "  ✅ openclaw.json updated"
 else
   echo "  ⚠️  openclaw.json not found at $CONFIG_PATH"
   echo "     Will be created on first start (dev.sh / reinstall-daemon.sh)"

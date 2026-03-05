@@ -19,6 +19,7 @@ User requests a new agent/role/assistant, or Main Agent spawns HRBP for recruitm
   - Core responsibilities (for SOUL.md)
   - Autonomy levels (L1/L2/L3 boundaries)
   - Tools and skills needed
+  - Bundled skills to enable (optional; default none)
   - Route mode: spawn / binding / both
   - If binding: which channel and account
 
@@ -35,14 +36,20 @@ After user confirms the proposal:
    - `TOOLS.md` — Available tools and usage rules
    - `TASKS.md` — Active projects tracker
    - `HEARTBEAT.md` — Health status
-3. Copy shared protocols (`RULES.md`, `TEMPLATES.md`) into the workspace
+3. Create optional skill config file:
+   - `BUILTIN_SKILLS` — one bundled skill per line (leave empty = no bundled skills)
+4. Copy shared protocols (`RULES.md`, `TEMPLATES.md`) into the workspace
 
 ### Step 4: Register Agent (L3 — requires user confirmation)
-1. Run: `./scripts/add-agent.sh <agent-id>` (add `--bind <channel>:<accountId>` if needed)
+1. Run:
+   - `bash ./skills/hrbp-recruit/scripts/add-agent.sh <agent-id>`
+   - Optional bind: `--bind <channel>:<accountId>`
+   - Optional bundled skills override: `--builtin-skills <skill1,skill2>`
 2. This will:
    - Add agent to `agents.list` in openclaw.json
    - Update Main Agent's `subagents.allowAgents`
    - Add binding if specified
+   - Set `agents.list[].skills = workspace skills + selected bundled skills`
    - Update Main Agent's MEMORY.md roster
 
 ### Step 5: Closeout

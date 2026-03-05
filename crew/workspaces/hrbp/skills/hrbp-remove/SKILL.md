@@ -29,7 +29,7 @@ Show the user:
 ### Step 4: Execute Removal (L3)
 After user confirms:
 
-1. Run: `./scripts/remove-agent.sh <agent-id>`
+1. Run: `bash ./skills/hrbp-remove/scripts/remove-agent.sh <agent-id>`
 2. This will:
    - Remove agent from `agents.list` in openclaw.json
    - Remove from Main Agent's `subagents.allowAgents`

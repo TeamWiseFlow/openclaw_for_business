@@ -21,7 +21,7 @@
 模式 B: 微信用户 → OpenClaw channel → Gateway bindings → 子 Agent（直接响应）
 ```
 
-**进程���型**：Gateway 单进程，所有 Agent 在内部运行（逻辑隔离）。
+**进程类型**：Gateway 单进程，所有 Agent 在内部以子进程模式运行（逻辑隔离）。
 
 ## 源码结构（crew/）
 
@@ -34,11 +34,13 @@ crew/
 │   ├── main/          # Main Agent（路由调度器）
 │   └── hrbp/          # HRBP Agent（默认预制的第一个 Agent）
 │       └── skills/    # HRBP 专属技能
-│           ��── hrbp-recruit/  # 招聘新 Agent
+│           ├── hrbp-recruit/  # 招聘新 Agent
 │           ├── hrbp-modify/   # 修改已有 Agent
-│           └── hrbp-remove/   # 移除 Agent
+│           ├── hrbp-remove/   # 移除 Agent
+│           ├── hrbp-list/     # 花名册/路由状态查询
+│           └── hrbp-usage/    # 用量与成本统计
 └── role-templates/    # 角色参考模板（供 HRBP 招聘时使用）
-    ├── _template/     # 空白 8 文件模板
+    ├── _template/     # 空白模板（8 个 .md + BUILTIN_SKILLS）
     ├── developer.md
     ├── customer-service.md
     ├── market-analyst.md
@@ -57,23 +59,24 @@ skills/                # 全局共享技能（项目根目录，所有 Agent 可
 | 全局共享 | `skills/`（项目根目录） | `openclaw/skills/` | 所有 Agent |
 | Agent 专属 | `crew/workspaces/<agent>/skills/` | `~/.openclaw/workspace-<agent>/skills/` | 仅该 Agent |
 
+最终每个 Agent 可见的技能集合为：
+- `workspace skills` + `agents.list[].skills` 中允许的内置 skills
+- 非 main agent 默认仅启用 workspace skills
+- main 默认启用全部内置 skills
+
 ## 核心组件
 
 ### Main Agent（路由器/调度员）
 - 接收用户消息，判断意图
-- 通过 `sessions_spawn` 分发给对应子 Agent
+- 优先通过 `sessions_spawn` 分发给对应子 Agent
 - 汇报子 Agent 结果
+- 没有匹配 crew 时才自己处理
 - 不确定时询问用户
 
 ### HRBP Agent（默认预制的第一个 Agent）
 - 管理 Agent 完整生命周期：招聘（创建）、调岗（修改）、解雇（删除）
 - 受保护，不可删除
-- 三个 Skill：`hrbp-recruit`、`hrbp-modify`、`hrbp-remove`
-
-### Bridge（飞书连接器）
-- 单飞书 Bot → 单 Main Agent
-- 入站：解析 `@alias` 路由提示
-- 出站：添加 `[AgentName]` 前缀标识
+- 五个 Skill：`hrbp-recruit`、`hrbp-modify`、`hrbp-remove`、`hrbp-list`、`hrbp-usage`
 
 ## Agent 来源
 
@@ -81,11 +84,11 @@ Agent 有三种创建方式：
 
 1. **内置预制**：`crew/workspaces/` 中定义的 Agent（main、hrbp），随 `dev.sh` / `reinstall-daemon.sh` 自动安装
 2. **HRBP 创建**：用户通过与 HRBP Agent 对话，根据需求创建定制化 Agent（默认方式）
-3. **Addon 预制**：第三�� addon 通过 `agents/` 目录贡献预制 Agent，由 `apply-addons.sh` 自动安装并注册，由 HRBP 统一管理
+3. **Addon 预制**：第三方 addon 通过 `crew/` 目录贡献预制 Agent，由 `apply-addons.sh` 自动安装并注册，由 HRBP 统一管理
 
 ## Workspace 结构
 
-每个 Agent 的 workspace 包含 8 个文件：
+每个 Agent 的 workspace 包含 8 个核心文件（可选 `BUILTIN_SKILLS`）：
 
 | 文件 | 用途 |
 |------|------|
@@ -97,6 +100,7 @@ Agent 有三种创建方式：
 | TOOLS.md | 可用工具和使用规则 |
 | TASKS.md | 活跃项目追踪 |
 | HEARTBEAT.md | 健康状态 |
+| BUILTIN_SKILLS（可选） | 启用的内置 skill（每行一个，不填=仅 workspace skills） |
 
 ## 共享协议
 
@@ -108,16 +112,18 @@ Agent 有三种创建方式：
 | 脚本 | 用途 |
 |------|------|
 | `setup-crew.sh` | 安装多 Agent 系统（部署 workspace、模板、配置，幂等） |
-| `add-agent.sh` | 注册新 Agent |
-| `modify-agent.sh` | 修改 Agent 渠道绑定 |
-| `remove-agent.sh` | 移除 Agent（workspace 归档） |
-| `list-agents.sh` | 列出所有 Agent 及状态 |
+| `crew/workspaces/hrbp/skills/hrbp-recruit/scripts/add-agent.sh` | HRBP 内部：注册新 Agent |
+| `crew/workspaces/hrbp/skills/hrbp-modify/scripts/modify-agent.sh` | HRBP 内部：修改 Agent 渠道绑定 |
+| `crew/workspaces/hrbp/skills/hrbp-remove/scripts/remove-agent.sh` | HRBP 内部：移除 Agent（workspace 归档） |
+| `crew/workspaces/hrbp/skills/hrbp-list/scripts/list-agents.sh` | HRBP 内部：列出所有 Agent 及状态 |
+| `crew/workspaces/hrbp/skills/hrbp-usage/scripts/agent-usage.sh` | HRBP 内部：统计 Agent 用量与成本 |
 
 ## 配置
 
 Agent 配置在 `~/.openclaw/openclaw.json` 中：
 
 - `agents.list[]` — Agent 列表（id、name、workspace、subagents）
+- `agents.list[].skills` — Agent skill 白名单（workspace skills + 指定内置 skills）
 - `bindings[]` — 渠道绑定（模式 B 直连）
 
 ## 路由模式

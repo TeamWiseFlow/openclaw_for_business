@@ -28,8 +28,8 @@ vim ~/.openclaw/openclaw.json
 ## 验证
 
 ```bash
-# 查看已注册的 Agent
-./scripts/list-agents.sh
+# 查看已注册的 Agent（main + hrbp）
+node -e "const c=require(process.env.HOME+'/.openclaw/openclaw.json'); console.log((c.agents?.list||[]).map(a=>a.id).join(', '))"
 ```
 
 应该看到两个 Agent：`main`（路由器）和 `hrbp`（HR 管理）。
@@ -64,28 +64,36 @@ vim ~/.openclaw/openclaw.json
 
 发消息给 main-bot，由 Main Agent 回复；发消息给 hrbp-bot，由 HRBP Agent 回复。各 Agent 并行运行、互不干扰。
 
-## Agent 管理脚本
+## Agent 管理（推荐）
 
 ```bash
 # 手动安装/重装 Agent 系统
 ./scripts/setup-crew.sh
 ./scripts/setup-crew.sh --force  # 覆盖已有 workspace
+./scripts/setup-crew.sh --builtin-skills hrbp:browser-guide  # 覆盖指定 agent 的内置 skill
+```
 
-# 添加新 Agent（workspace 必须已存在）
-./scripts/add-agent.sh <agent-id>
+建议通过 HRBP 对话执行 Agent 生命周期操作（新增/调岗/移除），由 HRBP skill 内部脚本处理注册与绑定。
 
-# 添加并绑定渠道（模式 B 直连）
-./scripts/add-agent.sh customer-service --bind wechat:wx_xxx
+如需手动执行（调试场景）：
 
-# 修改渠道绑定
-./scripts/modify-agent.sh <agent-id> --bind wechat:wx_xxx
-./scripts/modify-agent.sh <agent-id> --unbind wechat
+```bash
+# 新增 Agent（workspace 已存在）
+bash ~/.openclaw/workspace-hrbp/skills/hrbp-recruit/scripts/add-agent.sh <agent-id>
+bash ~/.openclaw/workspace-hrbp/skills/hrbp-recruit/scripts/add-agent.sh <agent-id> --builtin-skills browser-guide,summarize
+
+# 修改绑定
+bash ~/.openclaw/workspace-hrbp/skills/hrbp-modify/scripts/modify-agent.sh <agent-id> --bind wechat:wx_xxx
+bash ~/.openclaw/workspace-hrbp/skills/hrbp-modify/scripts/modify-agent.sh <agent-id> --unbind wechat
 
 # 移除 Agent（workspace 归档不删除）
-./scripts/remove-agent.sh <agent-id>
+bash ~/.openclaw/workspace-hrbp/skills/hrbp-remove/scripts/remove-agent.sh <agent-id>
 
-# 列出所有 Agent
-./scripts/list-agents.sh
+# 用量统计
+bash ~/.openclaw/workspace-hrbp/skills/hrbp-usage/scripts/agent-usage.sh --period daily --days 14
+
+# 花名册/路由状态
+bash ~/.openclaw/workspace-hrbp/skills/hrbp-list/scripts/list-agents.sh
 ```
 
 ## 通过 Addon 增加 Agent
@@ -113,6 +121,7 @@ addons/my-addon/
 
 运行 `dev.sh` 或 `reinstall-daemon.sh` 时，addon 中的 Agent 会被自动安装并注册。
 全局 skills 安装到 `openclaw/skills/`（所有 Agent 可见），Agent 专属 skills 安装到对应 workspace。
+每个 Agent 最终可见 skill 为：`workspace skills + agents.list[].skills 中允许的内置 skill`。
 这些 Agent 由 HRBP 统一管理，可以通过 HRBP 进行修改和移除。
 
 ## 目录结构
@@ -125,7 +134,7 @@ addons/my-addon/
 ├── workspace-main/        # Main Agent workspace（8 个 .md 文件）
 ├── workspace-hrbp/        # HRBP Agent workspace
 └── hrbp-templates/        # 角色模板（供 HRBP 招聘时参考）
-    ├── _template/         # 空白模板（8 个占位文件）
+    ├── _template/         # 空白模板（8 个占位文件 + BUILTIN_SKILLS）
     ├── developer.md       # 开发工程师参考
     ├── market-analyst.md  # 市场分析师参考
     ├── content-writer.md  # 内容创作者参考

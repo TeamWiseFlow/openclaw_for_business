@@ -10,6 +10,10 @@
 - API clients, database access
 - CI/CD pipeline triggers
 
+## Bundled Skills (Optional)
+- Default recommendation: keep empty (workspace-only)
+- If needed, write selected bundled skills into `BUILTIN_SKILLS`
+
 ## Key Responsibilities
 1. Write and review code based on requirements
 2. Debug issues and fix bugs

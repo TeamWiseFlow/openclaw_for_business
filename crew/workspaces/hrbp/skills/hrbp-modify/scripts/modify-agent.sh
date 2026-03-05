@@ -1,6 +1,6 @@
 #!/bin/bash
 # modify-agent.sh - 修改 Agent 的渠道绑定
-# 用法: ./scripts/modify-agent.sh <agent-id> [--bind <channel>:<accountId>] [--unbind <channel>]
+# 用法: bash ./skills/hrbp-modify/scripts/modify-agent.sh <agent-id> [--bind <channel>:<accountId>] [--unbind <channel>]
 set -e
 
 OPENCLAW_HOME="$HOME/.openclaw"

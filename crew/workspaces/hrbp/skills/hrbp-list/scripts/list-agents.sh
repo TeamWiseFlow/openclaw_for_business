@@ -1,6 +1,6 @@
 #!/bin/bash
 # list-agents.sh - 列出所有注册的 Agent 及其状态
-# 用法: ./scripts/list-agents.sh
+# 用法: bash ./skills/hrbp-list/scripts/list-agents.sh
 set -e
 
 OPENCLAW_HOME="$HOME/.openclaw"

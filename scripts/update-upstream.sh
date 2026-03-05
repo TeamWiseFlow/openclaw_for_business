@@ -19,7 +19,10 @@ pnpm build
 
 cd ..
 
-# 应用 crew skills + addons
+# 同步内置 crew（workspace + agents.list 技能白名单）
+./scripts/setup-crew.sh
+
+# 应用全局 skills + addons
 ./scripts/apply-addons.sh
 
 echo ""

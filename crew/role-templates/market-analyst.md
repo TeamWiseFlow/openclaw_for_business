@@ -9,6 +9,10 @@
 - Web search, data analysis tools
 - Report generation, visualization
 
+## Bundled Skills (Optional)
+- Default recommendation: keep empty (workspace-only)
+- If needed, write selected bundled skills into `BUILTIN_SKILLS`
+
 ## Key Responsibilities
 1. Monitor market trends and competitor activity
 2. Produce analysis reports with actionable insights
