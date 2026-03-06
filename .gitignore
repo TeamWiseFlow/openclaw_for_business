@@ -1,6 +1,10 @@
 # OpenClaw 上游仓库（通过脚本管理）
 openclaw/
 
+# 第三方 addon（用户自行安装，不跟踪）
+addons/*/
+!addons/README.md
+
 # 运行时数据（使用上游默认 ~/.openclaw/，防止误创建本地目录）
 workspace/
 .openclaw-data/
@@ -15,9 +19,6 @@ node_modules/
 # IDE
 .vscode/
 .idea/
-
-# AI assistant rules
-.kiro-rules.md
 
 # 临时文件
 *.tmp

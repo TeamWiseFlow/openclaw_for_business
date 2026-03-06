@@ -18,10 +18,11 @@ if [ ! -f "$CONFIG_PATH" ]; then
   fi
 fi
 
-# Apply addons (overrides + patches + skills)
-if [ -d "$PROJECT_ROOT/addons" ] && [ -n "$(ls -A "$PROJECT_ROOT/addons" 2>/dev/null)" ]; then
-  "$PROJECT_ROOT/scripts/apply-addons.sh"
-fi
+# 安装多 Agent 系统（幂等，已存在的 workspace 不覆盖）
+"$PROJECT_ROOT/scripts/setup-crew.sh"
+
+# Apply addons (overrides + patches + skills + agents)
+"$PROJECT_ROOT/scripts/apply-addons.sh"
 
 # 检测 WSL2 环境并获取访问地址
 if grep -qi microsoft /proc/version 2>/dev/null; then
@@ -41,7 +42,7 @@ echo ""
 
 cd "$PROJECT_ROOT/openclaw"
 
-# 根据参数决定运行模式
+# 根据参数决定运行���式
 case "${1:-gateway}" in
   gateway)
     shift  # 移除 'gateway' 参数

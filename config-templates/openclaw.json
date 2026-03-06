@@ -47,8 +47,36 @@
       "subagents": {
         "maxConcurrent": 8
       }
-    }
+    },
+    "list": [
+      {
+        "id": "main",
+        "default": true,
+        "name": "Main Agent",
+        "workspace": "~/.openclaw/workspace-main",
+        "subagents": {
+          "allowAgents": ["main", "hrbp"]
+        }
+      },
+      {
+        "id": "hrbp",
+        "name": "HRBP",
+        "workspace": "~/.openclaw/workspace-hrbp"
+      }
+    ]
   },
+  "bindings": [
+    {
+      "agentId": "main",
+      "comment": "main-bot -> Main Agent",
+      "match": { "channel": "feishu", "accountId": "main-bot" }
+    },
+    {
+      "agentId": "hrbp",
+      "comment": "hrbp-bot -> HRBP Agent",
+      "match": { "channel": "feishu", "accountId": "hrbp-bot" }
+    }
+  ],
   "messages": {
     "ackReactionScope": "group-mentions"
   },
@@ -105,11 +133,32 @@
   "channels": {
     "feishu": {
       "enabled": true,
-      "appId": "",
-      "appSecret": "",
       "domain": "feishu",
-      "groupPolicy": "disabled",
-      "accounts": {}
+      "connectionMode": "websocket",
+      "dmPolicy": "open",
+      "allowFrom": ["*"],
+      "groupPolicy": "allowlist",
+      "requireMention": true,
+      "streaming": true,
+      "tools": {
+        "doc": true,
+        "chat": true,
+        "wiki": true,
+        "drive": true,
+        "perm": false
+      },
+      "accounts": {
+        "main-bot": {
+          "name": "Main Bot",
+          "appId": "",
+          "appSecret": ""
+        },
+        "hrbp-bot": {
+          "name": "HRBP Bot",
+          "appId": "",
+          "appSecret": ""
+        }
+      }
     }
   },
   "gateway": {

@@ -10,10 +10,11 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 echo "🔧 Reinstalling Gateway Daemon..."
 echo "   Data: ~/.openclaw"
 
-# 应用 addons（如果有）
-if [ -d "$PROJECT_ROOT/addons" ] && [ -n "$(ls -A "$PROJECT_ROOT/addons" 2>/dev/null)" ]; then
-  "$PROJECT_ROOT/scripts/apply-addons.sh"
-fi
+# 安装多 Agent 系统（幂等）
+"$PROJECT_ROOT/scripts/setup-crew.sh"
+
+# Apply addons (crew skills + 第三方 addon)
+"$PROJECT_ROOT/scripts/apply-addons.sh"
 
 cd "$PROJECT_ROOT/openclaw"
 
