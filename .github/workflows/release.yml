@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Bump version
         id: bump
@@ -109,8 +109,18 @@ jobs:
           sudo chown $USER "$XDG_DIR"
           echo "XDG_RUNTIME_DIR=$XDG_DIR" >> $GITHUB_ENV
 
-      - name: Run reinstall-daemon.sh
-        run: bash ./scripts/reinstall-daemon.sh
+      # Run setup-crew.sh + apply-addons.sh separately.
+      # We intentionally skip the `pnpm openclaw daemon install` step that
+      # reinstall-daemon.sh would also execute: daemon installation requires
+      # a real user session (systemd on Linux, launchd on macOS) and cannot
+      # be meaningfully tested in a headless CI runner.
+      - name: Run setup-crew.sh
+        run: bash scripts/setup-crew.sh
+        working-directory: openclaw_for_business
+
+      - name: Run apply-addons.sh
+        run: bash scripts/apply-addons.sh
+        working-directory: openclaw_for_business
 
       # ── 仅 ubuntu-24.04：打包并上传 artifact ──────────────────────────
       - name: Create release archive
