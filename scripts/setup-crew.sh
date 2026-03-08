@@ -13,20 +13,20 @@ FORCE=false
 
 source "$SCRIPT_DIR/lib/agent-skills.sh"
 
-BUILTIN_OVERRIDES=""
+DENIED_OVERRIDES=""
 
 usage() {
-  echo "Usage: $0 [--force] [--builtin-skills <agent-id>:<skill1,skill2|all>]"
+  echo "Usage: $0 [--force] [--denied-skills <agent-id>:<skill1,skill2>]"
   echo ""
   echo "Options:"
-  echo "  --force                               Overwrite existing workspace files"
-  echo "  --builtin-skills <agent-id>:<skills> Override bundled skills for one agent"
+  echo "  --force                              Overwrite existing workspace files"
+  echo "  --denied-skills <agent-id>:<skills>  Override denied skills for one agent"
   echo ""
   echo "Examples:"
   echo "  $0"
   echo "  $0 --force"
-  echo "  $0 --builtin-skills hrbp:browser-guide"
-  echo "  $0 --builtin-skills main:all --builtin-skills hrbp:browser-guide,summarize"
+  echo "  $0 --denied-skills hrbp:apple-notes,slack"
+  echo "  $0 --denied-skills main:slack --denied-skills hrbp:github,coding-agent"
   exit 1
 }
 
@@ -36,16 +36,16 @@ while [ $# -gt 0 ]; do
       FORCE=true
       shift
       ;;
-    --builtin-skills)
-      [ -z "$2" ] && { echo "❌ --builtin-skills requires <agent-id>:<skills>"; usage; }
+    --denied-skills)
+      [ -z "$2" ] && { echo "❌ --denied-skills requires <agent-id>:<skills>"; usage; }
       case "$2" in
         *:*)
-          BUILTIN_OVERRIDES="${BUILTIN_OVERRIDES}
+          DENIED_OVERRIDES="${DENIED_OVERRIDES}
 $2"
           ;;
         *)
-          echo "❌ Invalid format for --builtin-skills: $2"
-          echo "   Expected: <agent-id>:<skill1,skill2|all>"
+          echo "❌ Invalid format for --denied-skills: $2"
+          echo "   Expected: <agent-id>:<skill1,skill2>"
           exit 1
           ;;
       esac
@@ -58,7 +58,7 @@ $2"
   esac
 done
 
-resolve_builtin_override_for_agent() {
+resolve_denied_override_for_agent() {
   local agent_id="$1"
   local line=""
   local key=""
@@ -72,13 +72,13 @@ resolve_builtin_override_for_agent() {
       printf '%s\n' "$value"
       return
     fi
-  done <<< "$BUILTIN_OVERRIDES"
+  done <<< "$DENIED_OVERRIDES"
 }
 
 sync_agent_skill_filter() {
   local agent_id="$1"
   local agent_override=""
-  agent_override="$(resolve_builtin_override_for_agent "$agent_id")"
+  agent_override="$(resolve_denied_override_for_agent "$agent_id")"
 
   local workspace_dir=""
   workspace_dir="$(node -e "
@@ -96,25 +96,32 @@ sync_agent_skill_filter() {
     return
   fi
 
-  local builtin_file="$workspace_dir/BUILTIN_SKILLS"
-  local skills_json=""
-  skills_json="$(resolve_agent_skills_json \
+  local denied_file="$workspace_dir/DENIED_SKILLS"
+  local skills_result=""
+  skills_result="$(resolve_agent_skills_json \
     "$agent_id" \
     "$workspace_dir" \
     "$agent_override" \
-    "$builtin_file" \
+    "$denied_file" \
     "$PROJECT_ROOT")"
 
-  AGENT_ID="$agent_id" AGENT_SKILLS_JSON="$skills_json" node -e "
+  # 空字符串 → 不设 skills 过滤（删除 skills 字段，所有已启用 skill 可见）
+  # JSON 数组  → 写入明确的 allowlist
+  AGENT_ID="$agent_id" AGENT_SKILLS_RESULT="$skills_result" node -e "
     const fs = require('fs');
     const c = JSON.parse(fs.readFileSync('$CONFIG_PATH', 'utf8'));
     const list = c.agents?.list || [];
     const idx = list.findIndex((entry) => entry.id === process.env.AGENT_ID);
     if (idx >= 0) {
-      list[idx] = {
-        ...list[idx],
-        skills: JSON.parse(process.env.AGENT_SKILLS_JSON || '[]'),
-      };
+      const skillsResult = process.env.AGENT_SKILLS_RESULT || '';
+      if (skillsResult.trim()) {
+        // 有明确的 allowlist → 写入 skills 字段
+        list[idx] = { ...list[idx], skills: JSON.parse(skillsResult) };
+      } else {
+        // 无过滤 → 删除 skills 字段，让 openclaw 默认开放所有已启用 skill
+        const { skills: _removed, ...rest } = list[idx];
+        list[idx] = rest;
+      }
       fs.writeFileSync('$CONFIG_PATH', JSON.stringify(c, null, 2) + '\\n');
     }
   "
@@ -140,10 +147,11 @@ for agent_dir in "$CREW_DIR"/workspaces/*/; do
 
   mkdir -p "$dest"
   cp "$agent_dir"*.md "$dest/"
-  if [ -f "$agent_dir/BUILTIN_SKILLS" ]; then
-    cp "$agent_dir/BUILTIN_SKILLS" "$dest/"
+  # 复制 DENIED_SKILLS（如有）
+  if [ -f "$agent_dir/DENIED_SKILLS" ]; then
+    cp "$agent_dir/DENIED_SKILLS" "$dest/"
   fi
-  # 复制 Agent 专属 skills（���有）
+  # 复制 Agent 专属 skills（如有）
   if [ -d "$agent_dir/skills" ]; then
     cp -r "$agent_dir/skills" "$dest/"
   fi
@@ -161,7 +169,7 @@ for agent_dir in "$CREW_DIR"/workspaces/*/; do
 done
 echo "  ✅ Shared protocols (RULES.md, TEMPLATES.md) copied"
 
-# ─── 3. 安装角色模板 ────────────────────────────────────────────���─
+# ─── 3. 安装角色模板 ─────────────────────────────────────────────
 if [ -d "$CREW_DIR/role-templates" ]; then
   ROLE_DEST="$OPENCLAW_HOME/hrbp-templates"
   mkdir -p "$ROLE_DEST"
@@ -169,31 +177,39 @@ if [ -d "$CREW_DIR/role-templates" ]; then
   echo "  ✅ Role templates installed to $ROLE_DEST"
 fi
 
-# ─── 4. 更新 openclaw.json（合并 main/hrbp + skills 白名单） ──────
+# ─── 4. 更新 openclaw.json（合并 main/hrbp + skills 过滤） ─��──────
 if [ -f "$CONFIG_PATH" ]; then
   echo "  📝 Merging agent config into openclaw.json..."
 
-  MAIN_OVERRIDE="$(resolve_builtin_override_for_agent "main")"
-  HRBP_OVERRIDE="$(resolve_builtin_override_for_agent "hrbp")"
+  MAIN_OVERRIDE="$(resolve_denied_override_for_agent "main")"
+  HRBP_OVERRIDE="$(resolve_denied_override_for_agent "hrbp")"
 
-  MAIN_SKILLS_JSON="$(resolve_agent_skills_json \
+  MAIN_SKILLS_RESULT="$(resolve_agent_skills_json \
     "main" \
     "$OPENCLAW_HOME/workspace-main" \
     "$MAIN_OVERRIDE" \
-    "$OPENCLAW_HOME/workspace-main/BUILTIN_SKILLS" \
+    "$OPENCLAW_HOME/workspace-main/DENIED_SKILLS" \
     "$PROJECT_ROOT")"
-  HRBP_SKILLS_JSON="$(resolve_agent_skills_json \
+  HRBP_SKILLS_RESULT="$(resolve_agent_skills_json \
     "hrbp" \
     "$OPENCLAW_HOME/workspace-hrbp" \
     "$HRBP_OVERRIDE" \
-    "$OPENCLAW_HOME/workspace-hrbp/BUILTIN_SKILLS" \
+    "$OPENCLAW_HOME/workspace-hrbp/DENIED_SKILLS" \
     "$PROJECT_ROOT")"
 
-  MAIN_SKILLS_JSON="$MAIN_SKILLS_JSON" HRBP_SKILLS_JSON="$HRBP_SKILLS_JSON" node -e "
+  MAIN_SKILLS_RESULT="$MAIN_SKILLS_RESULT" HRBP_SKILLS_RESULT="$HRBP_SKILLS_RESULT" node -e "
     const fs = require('fs');
     const c = JSON.parse(fs.readFileSync('$CONFIG_PATH', 'utf8'));
-    const mainSkills = JSON.parse(process.env.MAIN_SKILLS_JSON || '[]');
-    const hrbpSkills = JSON.parse(process.env.HRBP_SKILLS_JSON || '[]');
+
+    const applySkills = (entry, skillsResult) => {
+      const result = (skillsResult || '').trim();
+      if (result) {
+        return { ...entry, skills: JSON.parse(result) };
+      }
+      // 无过滤 → 删除 skills 字段
+      const { skills: _removed, ...rest } = entry;
+      return rest;
+    };
 
     if (!c.agents) c.agents = {};
     if (!Array.isArray(c.agents.list)) c.agents.list = [];
@@ -209,27 +225,29 @@ if [ -f "$CONFIG_PATH" ]; then
     upsertAgent('main', (prev) => {
       const allowAgents = Array.isArray(prev?.subagents?.allowAgents) ? prev.subagents.allowAgents : [];
       const mergedAllowAgents = Array.from(new Set([...allowAgents, 'main', 'hrbp']));
-      return {
+      const base = {
         ...prev,
         id: 'main',
         default: prev.default ?? true,
         name: prev.name || 'Main Agent',
         workspace: prev.workspace || '~/.openclaw/workspace-main',
-        skills: mainSkills,
         subagents: {
           ...(prev.subagents || {}),
           allowAgents: mergedAllowAgents,
         },
       };
+      return applySkills(base, process.env.MAIN_SKILLS_RESULT);
     });
 
-    upsertAgent('hrbp', (prev) => ({
-      ...prev,
-      id: 'hrbp',
-      name: prev.name || 'HRBP',
-      workspace: prev.workspace || '~/.openclaw/workspace-hrbp',
-      skills: hrbpSkills,
-    }));
+    upsertAgent('hrbp', (prev) => {
+      const base = {
+        ...prev,
+        id: 'hrbp',
+        name: prev.name || 'HRBP',
+        workspace: prev.workspace || '~/.openclaw/workspace-hrbp',
+      };
+      return applySkills(base, process.env.HRBP_SKILLS_RESULT);
+    });
 
     // 配置飞书多账户 -> Agent 绑定（模式 B：渠道直连）
     if (!Array.isArray(c.bindings) || c.bindings.length === 0) {
@@ -250,7 +268,7 @@ if [ -f "$CONFIG_PATH" ]; then
     [ -n "$agent_id" ] || continue
     sync_agent_skill_filter "$agent_id"
   done <<< "$AGENT_IDS"
-  echo "  ✅ Agent skills filters synchronized"
+  echo "  ✅ Agent skill filters synchronized"
   echo "  ✅ openclaw.json updated"
 else
   echo "  ⚠️  openclaw.json not found at $CONFIG_PATH"

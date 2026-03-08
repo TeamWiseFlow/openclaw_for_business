@@ -112,22 +112,40 @@
   },
   "skills": {
     "entries": {
-      "browser-guide": {
-        "enabled": true
-      },
       "apple-notes": { "enabled": false },
       "apple-reminders": { "enabled": false },
       "bear-notes": { "enabled": false },
+      "notion": { "enabled": false },
+      "obsidian": { "enabled": false },
       "things-mac": { "enabled": false },
-      "spotify-player": { "enabled": false },
-      "blucli": { "enabled": false },
+      "trello": { "enabled": false },
+      "github": { "enabled": false },
+      "gh-issues": { "enabled": false },
+      "coding-agent": { "enabled": false },
+      "slack": { "enabled": false },
+      "imsg": { "enabled": false },
+      "wacli": { "enabled": false },
+      "gemini": { "enabled": false },
+      "openai-image-gen": { "enabled": false },
+      "openai-whisper": { "enabled": false },
+      "openai-whisper-api": { "enabled": false },
+      "nano-banana-pro": { "enabled": false },
+      "voice-call": { "enabled": false },
+      "sherpa-onnx-tts": { "enabled": false },
+      "songsee": { "enabled": false },
       "sonoscli": { "enabled": false },
+      "spotify-player": { "enabled": false },
+      "himalaya": { "enabled": false },
       "openhue": { "enabled": false },
-      "eightctl": { "enabled": false },
-      "peekaboo": { "enabled": false },
+      "goplaces": { "enabled": false },
+      "gog": { "enabled": false },
       "blogwatcher": { "enabled": false },
-      "summarize": { "enabled": false },
-      "ordercli": { "enabled": false }
+      "blucli": { "enabled": false },
+      "eightctl": { "enabled": false },
+      "mcporter": { "enabled": false },
+      "oracle": { "enabled": false },
+      "ordercli": { "enabled": false },
+      "sag": { "enabled": false }
     }
   },
   "channels": {
@@ -186,11 +204,14 @@
   },
   "plugins": {
     "load": {
-      "paths": ["openclaw/extensions/feishu"]
+      "paths": ["openclaw/extensions/feishu", "awada/awada-extension"]
     },
     "entries": {
       "feishu": {
         "enabled": true
+      },
+      "awada": {
+        "enabled": false
       }
     }
   }

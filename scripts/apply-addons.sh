@@ -23,6 +23,7 @@
 #   └── crew/               # 可选：预制 Agent
 #       └── <agent-id>/
 #           ├── SOUL.md ... HEARTBEAT.md  # workspace 文件
+#           ├── DENIED_SKILLS             # 可选：屏蔽特定内置 skill
 #           └── skills/*/SKILL.md         # Agent 专属技能
 set -e
 
@@ -38,6 +39,28 @@ HRBP_ADD_AGENT_SCRIPT="$PROJECT_ROOT/crew/workspaces/hrbp/skills/hrbp-recruit/sc
 cd "$OPENCLAW_DIR"
 git reset --hard HEAD 2>/dev/null || true
 cd "$PROJECT_ROOT"
+
+# ─── 同步 skills 禁用配置（从 config-templates 到运行配置）──────
+if [ -f "$CONFIG_PATH" ] && [ -f "$PROJECT_ROOT/config-templates/openclaw.json" ]; then
+  node -e "
+    const fs = require('fs');
+    const running = JSON.parse(fs.readFileSync('$CONFIG_PATH', 'utf8'));
+    const template = JSON.parse(fs.readFileSync('$PROJECT_ROOT/config-templates/openclaw.json', 'utf8'));
+
+    // 将模板中所有 skills.entries 设置同步到运��配置
+    // 确保用户即使更新也能保持精简的内置 skill 集
+    if (template.skills?.entries) {
+      if (!running.skills) running.skills = {};
+      if (!running.skills.entries) running.skills.entries = {};
+      for (const [name, entry] of Object.entries(template.skills.entries)) {
+        running.skills.entries[name] = entry;
+      }
+    }
+
+    fs.writeFileSync('$CONFIG_PATH', JSON.stringify(running, null, 2) + '\n');
+  "
+  echo "📝 Skills configuration synchronized"
+fi
 
 # ─── 安装全局共享技能（项目根目录 skills/） ─────────────────────
 GLOBAL_SKILL_COUNT=0
@@ -128,8 +151,8 @@ for addon_dir in "$ADDONS_DIR"/*/; do
       else
         mkdir -p "$dest"
         cp "${agent_ws}"*.md "$dest/"
-        if [ -f "${agent_ws}BUILTIN_SKILLS" ]; then
-          cp "${agent_ws}BUILTIN_SKILLS" "$dest/"
+        if [ -f "${agent_ws}DENIED_SKILLS" ]; then
+          cp "${agent_ws}DENIED_SKILLS" "$dest/"
         fi
         # 复制共享协议
         if [ -d "$CREW_DIR/shared" ]; then

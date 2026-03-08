@@ -59,13 +59,17 @@ openclaw_for_business/
 - **不是 addon** — 它是项目的默认预设，dev.sh 和 reinstall-daemon.sh 会自动安装
 - **HRBP 是第一个预制 Agent** — 负责 Agent 的生命周期管理（招聘/调岗/解雇）
 - **Main Agent 是路由调度器** — 负责消息路由和子 Agent 调度，并作为托底任务执行者
-- 每个 Agent workspace 包含 8 个 .md 文件（SOUL/AGENTS/MEMORY/USER/IDENTITY/TOOLS/TASKS/HEARTBEAT）和可选 `BUILTIN_SKILLS`
+- 每个 Agent workspace 包含 8 个 .md 文件（SOUL/AGENTS/MEMORY/USER/IDENTITY/TOOLS/TASKS/HEARTBEAT）和可选 `DENIED_SKILLS`
 - **技能两级体系**（与 OpenClaw 原生机制对齐）：
   - 全局共享：`skills/`（项目根目录）→ 安装到 `openclaw/skills/`，所有 Agent 可见
   - Agent 专属：`crew/workspaces/<agent>/skills/` → 安装到 `~/.openclaw/workspace-<agent>/skills/`，仅该 Agent 可见
-  - Agent 技能白名单：`agents.list[].skills` 只暴露「workspace skills + 允许的内置 skills」
-    - 非 main agent 默认仅启用 workspace skills
-    - main 默认启用全部内置 skills
+  - **默认开放策略**：全部已启用内置 skill 对所有 Agent 开放，无需白名单配置
+    - `agents.list[].skills` 字段默认不设置（openclaw 原生行为：所有已启用 skill 可见）
+    - 如需屏蔽特定 skill，在 workspace 中放置 `DENIED_SKILLS` 文件（每行一个 skill 名称）
+    - 有屏蔽列表时，`setup-crew.sh` 自动计算 allowlist = 全部内置 - 屏蔽列表，写入 `agents.list[].skills`
+  - **精简内置 skill 集**：`config-templates/openclaw.json` 中通过 `skills.entries` 禁用平台无关 skill
+    - 禁用的是个人工具类（苹果生态、智能家居、社交软件等），保留通用工具
+    - `apply-addons.sh` 每次运行时将禁用列表同���到 `~/.openclaw/openclaw.json`，确保升级后一致
 
 飞书渠道直连架构：
 - 每个 Agent 绑定一个独立的飞书 Bot（通过 `channels.feishu.accounts` 多账户配置）
@@ -130,7 +134,7 @@ cd openclaw && pnpm build && cd ..
 # Agent 管理
 ./scripts/setup-crew.sh              # 手动安装/重装 Agent 系统
 ./scripts/setup-crew.sh --force      # 覆盖已有 workspace
-./scripts/setup-crew.sh --builtin-skills hrbp:browser-guide  # 覆盖指定 agent 的内置 skill
+./scripts/setup-crew.sh --denied-skills hrbp:slack,github  # 为指定 agent 屏蔽特定内置 skill
 ```
 
 ## 技术栈
