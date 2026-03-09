@@ -115,11 +115,9 @@ jobs:
       # be meaningfully tested in a headless CI runner.
       - name: Run setup-crew.sh
         run: bash scripts/setup-crew.sh
-        working-directory: openclaw_for_business
 
       - name: Run apply-addons.sh
         run: bash scripts/apply-addons.sh
-        working-directory: openclaw_for_business
 
       # ── 仅 ubuntu-24.04：打包并上传 artifact ──────────────────────────
       - name: Create release archive
