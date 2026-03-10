@@ -5,6 +5,11 @@ on:
     types: [closed]
     branches: [main]
 
+# 同一时间只允许一个 release job 运行，防止并发 PR merge 时版本号竞争
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
