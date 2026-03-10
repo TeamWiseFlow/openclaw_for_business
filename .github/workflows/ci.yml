@@ -14,6 +14,7 @@ concurrency:
 env:
   NODE_VERSION: '20'
   OPENCLAW_REPO: 'https://github.com/openclaw/openclaw'
+  OPENCLAW_VERSION_FILE: 'openclaw.version'
 
 jobs:
   test:
@@ -26,7 +27,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Clone openclaw upstream
-        run: git clone ${{ env.OPENCLAW_REPO }} openclaw
+        run: |
+          . ./${{ env.OPENCLAW_VERSION_FILE }}
+          git clone ${{ env.OPENCLAW_REPO }} openclaw
+          git -C openclaw checkout $OPENCLAW_COMMIT
+          echo "Pinned openclaw to version=$OPENCLAW_VERSION commit=$OPENCLAW_COMMIT"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4

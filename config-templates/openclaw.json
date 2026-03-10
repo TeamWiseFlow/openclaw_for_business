@@ -17,7 +17,7 @@
           {
             "id": "Pro/moonshotai/Kimi-K2.5",
             "name": "Kimi K2.5",
-            "input": ["text"],
+            "input": ["text", "image"],
             "contextWindow": 256000,
             "maxTokens": 8192
           },
@@ -201,15 +201,9 @@
     }
   },
   "plugins": {
-    "load": {
-      "paths": ["openclaw/extensions/feishu", "awada/awada-extension"]
-    },
     "entries": {
       "feishu": {
         "enabled": true
-      },
-      "awada": {
-        "enabled": false
       }
     }
   }

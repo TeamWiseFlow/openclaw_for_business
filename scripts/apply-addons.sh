@@ -62,7 +62,31 @@ if [ -f "$CONFIG_PATH" ] && [ -f "$PROJECT_ROOT/config-templates/openclaw.json" 
   echo "📝 Skills configuration synchronized"
 fi
 
-# ─── 安装全局共享技能（项目根目录 skills/） ─────────────────────
+# ─── 注入 awada 扩展路径（绝对路径，避免 CWD 依赖）──────────────
+AWADA_EXT="$PROJECT_ROOT/awada/awada-extension"
+if [ -d "$AWADA_EXT" ] && [ -f "$AWADA_EXT/openclaw.plugin.json" ]; then
+  if [ -f "$CONFIG_PATH" ]; then
+    node -e "
+      const fs = require('fs');
+      const config = JSON.parse(fs.readFileSync('$CONFIG_PATH', 'utf8'));
+      if (!config.plugins) config.plugins = {};
+      if (!config.plugins.load) config.plugins.load = {};
+      if (!Array.isArray(config.plugins.load.paths)) config.plugins.load.paths = [];
+      const awadaPath = '$AWADA_EXT';
+      if (!config.plugins.load.paths.includes(awadaPath)) {
+        config.plugins.load.paths.push(awadaPath);
+      }
+      if (!config.plugins.entries) config.plugins.entries = {};
+      if (!config.plugins.entries.awada) {
+        config.plugins.entries.awada = { enabled: false };
+      }
+      fs.writeFileSync('$CONFIG_PATH', JSON.stringify(config, null, 2) + '\n');
+    "
+    echo "📝 Awada extension path injected"
+  fi
+fi
+
+# ─── 安装全局共享技能（项目根目录 skills/） ──────���──────────────
 GLOBAL_SKILL_COUNT=0
 if [ -d "$PROJECT_ROOT/skills" ]; then
   for skill_dir in "$PROJECT_ROOT"/skills/*/; do
