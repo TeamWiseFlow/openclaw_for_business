@@ -15,6 +15,18 @@ export type CreateAwadaReplyDispatcherParams = {
   accountId?: string;
 };
 
+export function formatAwadaReplyRecipient(target: OutboundTarget): string {
+  const userExternalId = target.user_id_external?.trim() ?? "";
+  const channelId = target.channel_id?.trim() ?? "";
+  if (!channelId) {
+    return userExternalId || "[unknown-channel]";
+  }
+  if (!userExternalId) {
+    return `[${channelId}]`;
+  }
+  return `${userExternalId}[${channelId}]`;
+}
+
 export function createAwadaReplyDispatcher(params: CreateAwadaReplyDispatcherParams) {
   const {
     cfg,
@@ -53,7 +65,9 @@ export function createAwadaReplyDispatcher(params: CreateAwadaReplyDispatcherPar
       traceId,
     })
       .then(() => {
-        log(`awada[${accountId ?? "default"}]: reply sent to ${target.user_id_external}`);
+        log(
+          `awada[${accountId ?? "default"}]: reply sent to ${formatAwadaReplyRecipient(target)}`,
+        );
       })
       .catch((err) => {
         error(`awada[${accountId ?? "default"}]: send failed: ${String(err)}`);

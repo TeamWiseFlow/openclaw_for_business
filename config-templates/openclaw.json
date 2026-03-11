@@ -1,23 +1,30 @@
 {
-  "auth": {
-    "profiles": {
-      "siliconflow:default": {
-        "provider": "openai",
-        "mode": "api_key"
-      }
+  "browser": {
+    "enabled": true,
+    "headless": false,
+    "defaultProfile": "openclaw",
+    "ssrfPolicy": {
+      "dangerouslyAllowPrivateNetwork": true
     }
   },
   "models": {
+    "mode": "merge",
     "providers": {
       "siliconflow": {
         "api": "openai-completions",
         "baseUrl": "https://api.siliconflow.cn/v1",
-        "apiKey": "",
+        "apiKey": "${SILICONFLOW_API_KEY}",
         "models": [
           {
             "id": "Pro/moonshotai/Kimi-K2.5",
             "name": "Kimi K2.5",
             "input": ["text", "image"],
+            "cost": {
+              "input": 0.004,
+              "output": 0.021,
+              "cacheRead": 0.0007,
+              "cacheWrite": 0.0007
+            },
             "contextWindow": 256000,
             "maxTokens": 8192
           },
@@ -25,6 +32,25 @@
             "id": "Pro/MiniMaxAI/MiniMax-M2.5",
             "name": "MiniMax M2.5",
             "input": ["text"],
+            "cost": {
+              "input": 0.0021,
+              "output": 0.0084,
+              "cacheRead": 0.00021,
+              "cacheWrite": 0.00021
+            },
+            "contextWindow": 1000000,
+            "maxTokens": 8192
+          },
+          {
+            "id": "Pro/zai-org/GLM-5",
+            "name": "GLM-5",
+            "input": ["text"],
+            "cost": {
+              "input": 0.006,
+              "output": 0.022,
+              "cacheRead": 0.001,
+              "cacheWrite": 0.0015
+            },
             "contextWindow": 1000000,
             "maxTokens": 8192
           }
@@ -34,9 +60,13 @@
   },
   "agents": {
     "defaults": {
+      "thinkingDefault": "low",
       "model": {
-        "primary": "siliconflow/Pro/moonshotai/Kimi-K2.5",
-        "fallbacks": ["siliconflow/Pro/MiniMaxAI/MiniMax-M2.5"]
+        "primary": "siliconflow/Pro/MiniMaxAI/MiniMax-M2.5",
+        "fallbacks": [
+          "siliconflow/Pro/moonshotai/Kimi-K2.5",
+          "siliconflow/Pro/zai-org/GLM-5"
+        ]
       },
       "compaction": {
         "mode": "safeguard"
@@ -52,6 +82,23 @@
         "default": true,
         "name": "Main Agent",
         "workspace": "~/.openclaw/workspace-main",
+        "skills": [
+          "1password",
+          "healthcheck",
+          "model-usage",
+          "nano-pdf",
+          "skill-creator",
+          "ordercli",
+          "session-logs",
+          "tmux",
+          "weather",
+          "xurl",
+          "video-frames",
+          "self-improving",
+          "browser-guide",
+          "rss-reader",
+          "smart-search"
+        ],
         "subagents": {
           "allowAgents": ["main", "hrbp", "it-engineer"]
         }
@@ -59,12 +106,54 @@
       {
         "id": "hrbp",
         "name": "HRBP",
-        "workspace": "~/.openclaw/workspace-hrbp"
+        "workspace": "~/.openclaw/workspace-hrbp",
+        "skills": [
+          "1password",
+          "healthcheck",
+          "model-usage",
+          "nano-pdf",
+          "skill-creator",
+          "ordercli",
+          "session-logs",
+          "tmux",
+          "weather",
+          "xurl",
+          "video-frames",
+          "self-improving",
+          "browser-guide",
+          "rss-reader",
+          "smart-search",
+          "hrbp-list",
+          "hrbp-modify",
+          "hrbp-recruit",
+          "hrbp-remove",
+          "hrbp-usage"
+        ]
       },
       {
         "id": "it-engineer",
         "name": "IT Engineer",
-        "workspace": "~/.openclaw/workspace-it-engineer"
+        "workspace": "~/.openclaw/workspace-it-engineer",
+        "skills": [
+          "1password",
+          "healthcheck",
+          "model-usage",
+          "nano-pdf",
+          "skill-creator",
+          "ordercli",
+          "session-logs",
+          "tmux",
+          "weather",
+          "xurl",
+          "video-frames",
+          "self-improving",
+          "github",
+          "gh-issues",
+          "coding-agent",
+          "browser-guide",
+          "rss-reader",
+          "smart-search"
+        ]
       }
     ]
   },
@@ -72,17 +161,26 @@
     {
       "agentId": "main",
       "comment": "main-bot -> Main Agent",
-      "match": { "channel": "feishu", "accountId": "main-bot" }
+      "match": {
+        "channel": "feishu",
+        "accountId": "main-bot"
+      }
     },
     {
       "agentId": "hrbp",
       "comment": "hrbp-bot -> HRBP Agent",
-      "match": { "channel": "feishu", "accountId": "hrbp-bot" }
+      "match": {
+        "channel": "feishu",
+        "accountId": "hrbp-bot"
+      }
     },
     {
       "agentId": "it-engineer",
       "comment": "it-engineer-bot -> IT Engineer Agent",
-      "match": { "channel": "feishu", "accountId": "it-engineer-bot" }
+      "match": {
+        "channel": "feishu",
+        "accountId": "it-engineer-bot"
+      }
     }
   ],
   "messages": {
@@ -110,52 +208,6 @@
       }
     }
   },
-  "browser": {
-    "enabled": true,
-    "defaultProfile": "openclaw",
-    "headless": false,
-    "ssrfPolicy": {
-      "dangerouslyAllowPrivateNetwork": true
-    }
-  },
-  "skills": {
-    "entries": {
-      "apple-notes": { "enabled": false },
-      "apple-reminders": { "enabled": false },
-      "bear-notes": { "enabled": false },
-      "notion": { "enabled": false },
-      "obsidian": { "enabled": false },
-      "things-mac": { "enabled": false },
-      "trello": { "enabled": false },
-      "github": { "enabled": true },
-      "gh-issues": { "enabled": true },
-      "coding-agent": { "enabled": true },
-      "slack": { "enabled": false },
-      "imsg": { "enabled": false },
-      "wacli": { "enabled": false },
-      "gemini": { "enabled": false },
-      "openai-image-gen": { "enabled": false },
-      "openai-whisper": { "enabled": false },
-      "openai-whisper-api": { "enabled": false },
-      "nano-banana-pro": { "enabled": false },
-      "voice-call": { "enabled": false },
-      "sherpa-onnx-tts": { "enabled": false },
-      "songsee": { "enabled": false },
-      "sonoscli": { "enabled": false },
-      "spotify-player": { "enabled": false },
-      "himalaya": { "enabled": false },
-      "openhue": { "enabled": false },
-      "goplaces": { "enabled": false },
-      "gog": { "enabled": false },
-      "blogwatcher": { "enabled": false },
-      "blucli": { "enabled": false },
-      "eightctl": { "enabled": false },
-      "mcporter": { "enabled": false },
-      "oracle": { "enabled": false },
-      "ordercli": { "enabled": true },
-      "sag": { "enabled": false }
-    }
-  },
   "channels": {
     "feishu": {
       "enabled": true,
@@ -173,27 +225,27 @@
       "accounts": {
         "main-bot": {
           "name": "Main Bot",
+          "appId": "",
+          "appSecret": "",
           "dmPolicy": "open",
           "allowFrom": ["*"],
-          "groupPolicy": "allowlist",
-          "appId": "",
-          "appSecret": ""
+          "groupPolicy": "allowlist"
         },
         "hrbp-bot": {
           "name": "HRBP Bot",
+          "appId": "",
+          "appSecret": "",
           "dmPolicy": "open",
           "allowFrom": ["*"],
-          "groupPolicy": "allowlist",
-          "appId": "",
-          "appSecret": ""
+          "groupPolicy": "allowlist"
         },
         "it-engineer-bot": {
           "name": "IT Engineer Bot",
+          "appId": "",
+          "appSecret": "",
           "dmPolicy": "open",
           "allowFrom": ["*"],
-          "groupPolicy": "allowlist",
-          "appId": "",
-          "appSecret": ""
+          "groupPolicy": "allowlist"
         }
       }
     }
@@ -221,11 +273,122 @@
       ]
     }
   },
+  "skills": {
+    "entries": {
+      "apple-notes": {
+        "enabled": false
+      },
+      "apple-reminders": {
+        "enabled": false
+      },
+      "bear-notes": {
+        "enabled": false
+      },
+      "notion": {
+        "enabled": false
+      },
+      "obsidian": {
+        "enabled": false
+      },
+      "things-mac": {
+        "enabled": false
+      },
+      "trello": {
+        "enabled": false
+      },
+      "github": {
+        "enabled": true
+      },
+      "gh-issues": {
+        "enabled": true
+      },
+      "coding-agent": {
+        "enabled": true
+      },
+      "slack": {
+        "enabled": false
+      },
+      "imsg": {
+        "enabled": false
+      },
+      "wacli": {
+        "enabled": false
+      },
+      "gemini": {
+        "enabled": false
+      },
+      "openai-image-gen": {
+        "enabled": false
+      },
+      "openai-whisper": {
+        "enabled": false
+      },
+      "openai-whisper-api": {
+        "enabled": false
+      },
+      "nano-banana-pro": {
+        "enabled": false
+      },
+      "voice-call": {
+        "enabled": false
+      },
+      "sherpa-onnx-tts": {
+        "enabled": false
+      },
+      "songsee": {
+        "enabled": false
+      },
+      "sonoscli": {
+        "enabled": false
+      },
+      "spotify-player": {
+        "enabled": false
+      },
+      "himalaya": {
+        "enabled": false
+      },
+      "openhue": {
+        "enabled": false
+      },
+      "goplaces": {
+        "enabled": false
+      },
+      "gog": {
+        "enabled": false
+      },
+      "blogwatcher": {
+        "enabled": false
+      },
+      "blucli": {
+        "enabled": false
+      },
+      "eightctl": {
+        "enabled": false
+      },
+      "mcporter": {
+        "enabled": false
+      },
+      "oracle": {
+        "enabled": false
+      },
+      "ordercli": {
+        "enabled": true
+      },
+      "sag": {
+        "enabled": false
+      }
+    }
+  },
   "plugins": {
     "entries": {
       "feishu": {
         "enabled": true
       }
+    }
+  },
+  "tools": {
+    "agentToAgent": {
+      "enabled": true
     }
   }
 }

@@ -6,6 +6,263 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OPENCLAW_CONFIG_PATH_DEFAULT="${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}"
+OPENCLAW_STATE_DIR_DEFAULT="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
+SYSTEMD_ENV_FILE="${OPENCLAW_STATE_DIR_DEFAULT}/daemon.env"
+
+collect_env_refs_from_config() {
+  local config_path="$1"
+  node - "$config_path" <<'NODE'
+const fs = require("node:fs");
+
+const configPath = process.argv[2];
+if (!configPath) {
+  process.exit(1);
+}
+
+let raw = "";
+try {
+  raw = fs.readFileSync(configPath, "utf8");
+} catch {
+  process.exit(1);
+}
+
+let cfg;
+try {
+  cfg = JSON.parse(raw);
+} catch {
+  process.exit(2);
+}
+
+const refs = new Set();
+const envPattern = /\$\{([A-Z][A-Z0-9_]*)\}/g;
+const envIdPattern = /^[A-Z][A-Z0-9_]*$/;
+
+function walk(value) {
+  if (typeof value === "string") {
+    for (const match of value.matchAll(envPattern)) {
+      if (match[1]) {
+        refs.add(match[1]);
+      }
+    }
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      walk(item);
+    }
+    return;
+  }
+
+  if (!value || typeof value !== "object") {
+    return;
+  }
+
+  if (
+    value.source === "env" &&
+    typeof value.id === "string" &&
+    envIdPattern.test(value.id)
+  ) {
+    refs.add(value.id);
+  }
+
+  for (const child of Object.values(value)) {
+    walk(child);
+  }
+}
+
+walk(cfg);
+process.stdout.write([...refs].sort().join("\n"));
+NODE
+}
+
+get_env_file_value() {
+  local env_file="$1"
+  local key="$2"
+  local line=""
+
+  if [ ! -f "$env_file" ]; then
+    return 1
+  fi
+
+  line="$(grep -E "^${key}=" "$env_file" | tail -n 1 || true)"
+  if [ -z "$line" ]; then
+    return 1
+  fi
+
+  printf "%s" "${line#*=}"
+}
+
+prompt_env_value() {
+  local key="$1"
+  local default_value="$2"
+  local default_source="$3"
+  local value=""
+  local reuse=""
+  local skip_empty=""
+
+  if [ -n "$default_value" ]; then
+    read -r -p "Use existing ${default_source} value for ${key}? [Y/n] " reuse
+    if [[ ! "$reuse" =~ ^[Nn]$ ]]; then
+      printf "%s" "$default_value"
+      return 0
+    fi
+  fi
+
+  while true; do
+    read -r -s -p "Enter value for ${key}: " value
+    echo ""
+    value="${value//$'\r'/}"
+    value="${value//$'\n'/}"
+
+    if [ -n "$value" ]; then
+      printf "%s" "$value"
+      return 0
+    fi
+
+    read -r -p "Value is empty, skip ${key}? [y/N] " skip_empty
+    if [[ "$skip_empty" =~ ^[Yy]$ ]]; then
+      printf ""
+      return 0
+    fi
+  done
+}
+
+prepare_systemd_env_file() {
+  local config_path="$1"
+  local env_file="$2"
+  local env_refs=""
+  local var_name=""
+  local shell_value=""
+  local existing_file_value=""
+  local default_value=""
+  local default_source=""
+  local resolved_value=""
+  local temp_env_file=""
+
+  if [ ! -f "$config_path" ]; then
+    echo "ℹ️  Config not found at ${config_path}; skip systemd env bootstrap."
+    return 0
+  fi
+
+  if ! env_refs="$(collect_env_refs_from_config "$config_path")"; then
+    echo "⚠️  Failed to parse ${config_path}; skip systemd env bootstrap."
+    return 0
+  fi
+
+  if [ -z "$env_refs" ]; then
+    echo "ℹ️  No env-var references found in ${config_path}; skip systemd env bootstrap."
+    return 0
+  fi
+
+  echo ""
+  echo "🔐 Detected env vars from ${config_path}:"
+  while IFS= read -r var_name; do
+    [ -n "$var_name" ] || continue
+    echo "   - ${var_name}"
+  done <<< "$env_refs"
+  echo ""
+
+  mkdir -p "$(dirname "$env_file")"
+  temp_env_file="$(mktemp "${env_file}.tmp.XXXXXX")"
+  chmod 600 "$temp_env_file"
+
+  while IFS= read -r var_name; do
+    [ -n "$var_name" ] || continue
+    default_value=""
+    default_source=""
+    shell_value="${!var_name-}"
+    existing_file_value=""
+
+    if [ -n "$shell_value" ]; then
+      default_value="$shell_value"
+      default_source="shell"
+    else
+      existing_file_value="$(get_env_file_value "$env_file" "$var_name" || true)"
+      if [ -n "$existing_file_value" ]; then
+        default_value="$existing_file_value"
+        default_source="existing env file"
+      fi
+    fi
+
+    if [ -t 0 ]; then
+      resolved_value="$(prompt_env_value "$var_name" "$default_value" "$default_source")"
+    else
+      resolved_value="$default_value"
+      if [ -z "$resolved_value" ]; then
+        echo "⚠️  Missing ${var_name} in non-interactive mode; leaving it unset."
+      fi
+    fi
+
+    if [ -n "$resolved_value" ]; then
+      printf "%s=%s\n" "$var_name" "$resolved_value" >> "$temp_env_file"
+    fi
+  done <<< "$env_refs"
+
+  mv "$temp_env_file" "$env_file"
+  chmod 600 "$env_file"
+  echo "✅ Wrote systemd env file: ${env_file}"
+}
+
+resolve_gateway_systemd_service_name() {
+  local profile="${OPENCLAW_PROFILE:-}"
+  local profile_trimmed=""
+  local profile_lower=""
+
+  profile_trimmed="$(printf "%s" "$profile" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+  profile_lower="$(printf "%s" "$profile_trimmed" | tr '[:upper:]' '[:lower:]')"
+
+  if [ -z "$profile_trimmed" ] || [ "$profile_lower" = "default" ]; then
+    printf "%s" "openclaw-gateway"
+    return 0
+  fi
+
+  printf "%s" "openclaw-gateway-${profile_trimmed}"
+}
+
+install_systemd_env_dropin() {
+  local env_file="$1"
+  local user_systemd_dir=""
+  local service_name=""
+  local dropin_dir=""
+  local dropin_file=""
+
+  if [ "$(uname -s)" != "Linux" ]; then
+    return 0
+  fi
+
+  if [ ! -f "$env_file" ]; then
+    echo "ℹ️  Env file ${env_file} not found; skip systemd drop-in."
+    return 0
+  fi
+
+  if ! command -v systemctl >/dev/null 2>&1; then
+    echo "ℹ️  systemctl unavailable; skip systemd drop-in."
+    return 0
+  fi
+
+  if ! systemctl --user show-environment >/dev/null 2>&1; then
+    echo "⚠️  systemctl --user unavailable in current session; skip systemd drop-in."
+    return 0
+  fi
+
+  service_name="$(resolve_gateway_systemd_service_name)"
+  user_systemd_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
+  dropin_dir="${user_systemd_dir}/${service_name}.service.d"
+  dropin_file="${dropin_dir}/10-env-file.conf"
+
+  mkdir -p "$dropin_dir"
+  cat > "$dropin_file" <<EOF
+[Service]
+EnvironmentFile=-${env_file}
+EOF
+
+  systemctl --user daemon-reload
+  systemctl --user restart "${service_name}.service"
+
+  echo "✅ Installed systemd drop-in: ${dropin_file}"
+}
 
 echo "🔧 Reinstalling Gateway Daemon..."
 echo "   Data: ~/.openclaw"
@@ -16,6 +273,10 @@ echo "   Data: ~/.openclaw"
 # Apply addons (crew skills + 第三方 addon)
 "$PROJECT_ROOT/scripts/apply-addons.sh"
 
+if [ "$(uname -s)" = "Linux" ]; then
+  prepare_systemd_env_file "$OPENCLAW_CONFIG_PATH_DEFAULT" "$SYSTEMD_ENV_FILE"
+fi
+
 cd "$PROJECT_ROOT/openclaw"
 
 # 卸载现有的 daemon
@@ -23,6 +284,10 @@ pnpm openclaw daemon uninstall 2>/dev/null || true
 
 # 重新安装（会使用当前环境变量，自动检测操作系统）
 pnpm openclaw daemon install
+
+if [ "$(uname -s)" = "Linux" ]; then
+  install_systemd_env_dropin "$SYSTEMD_ENV_FILE"
+fi
 
 # 检测 WSL2 环境并显示正确的访问地址
 if grep -qi microsoft /proc/version 2>/dev/null; then
