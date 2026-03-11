@@ -78,7 +78,9 @@ openclaw_for_business/
 ```bash
 git clone https://github.com/TeamWiseFlow/openclaw_for_business.git
 cd openclaw_for_business
-git clone https://github.com/openclaw/openclaw.git
+source ./openclaw.version
+git clone https://github.com/openclaw/openclaw.git openclaw
+git -C openclaw checkout "$OPENCLAW_COMMIT"
 ```
 
 或者直接在 release 页面下载打包（已经整合了上游 openclaw）
