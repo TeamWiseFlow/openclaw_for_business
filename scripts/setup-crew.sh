@@ -132,7 +132,8 @@ sync_agent_skill_filter() {
     "$builtin_file" \
     "$agent_override" \
     "$denied_file" \
-    "$PROJECT_ROOT")"
+    "$PROJECT_ROOT" \
+    "$OPENCLAW_HOME")"
 
   # JSON 数组 → 写入明确的 allowlist
   AGENT_ID="$agent_id" AGENT_SKILLS_RESULT="$skills_result" node -e "
@@ -162,7 +163,27 @@ for agent_id in $BUILTIN_CREWS; do
   dest="$OPENCLAW_HOME/workspace-$agent_id"
 
   if [ -d "$dest" ] && [ "$FORCE" != "true" ]; then
-    echo "  ⚠️  workspace-$agent_id already exists, skipping (use --force to overwrite)"
+    echo "  ⚠️  workspace-$agent_id already exists, keeping user files (use --force to overwrite)"
+
+    # 即使不 --force，也同步内置技能目录，确保内置脚本更新能下发到运行时 workspace
+    if [ -d "$agent_dir/skills" ]; then
+      mkdir -p "$dest/skills"
+      for skill_dir in "$agent_dir"/skills/*/; do
+        [ -d "$skill_dir" ] || continue
+        skill_name="$(basename "$skill_dir")"
+        rm -rf "$dest/skills/$skill_name"
+        cp -r "$skill_dir" "$dest/skills/$skill_name"
+      done
+      echo "  🔄 workspace-$agent_id built-in skills synced"
+    fi
+
+    # 同步 DENIED/BUILTIN 配置（若模板有）
+    if [ -f "$agent_dir/DENIED_SKILLS" ]; then
+      cp "$agent_dir/DENIED_SKILLS" "$dest/"
+    fi
+    if [ -f "$agent_dir/BUILTIN_SKILLS" ]; then
+      cp "$agent_dir/BUILTIN_SKILLS" "$dest/"
+    fi
     continue
   fi
 
@@ -229,7 +250,8 @@ if [ -f "$CONFIG_PATH" ]; then
     "$MAIN_BUILTIN_FILE" \
     "$MAIN_OVERRIDE" \
     "$OPENCLAW_HOME/workspace-main/DENIED_SKILLS" \
-    "$PROJECT_ROOT")"
+    "$PROJECT_ROOT" \
+    "$OPENCLAW_HOME")"
   HRBP_SKILLS_RESULT="$(resolve_agent_skills_json \
     "hrbp" \
     "$OPENCLAW_HOME/workspace-hrbp" \
@@ -237,7 +259,8 @@ if [ -f "$CONFIG_PATH" ]; then
     "$HRBP_BUILTIN_FILE" \
     "$HRBP_OVERRIDE" \
     "$OPENCLAW_HOME/workspace-hrbp/DENIED_SKILLS" \
-    "$PROJECT_ROOT")"
+    "$PROJECT_ROOT" \
+    "$OPENCLAW_HOME")"
   IT_SKILLS_RESULT="$(resolve_agent_skills_json \
     "it-engineer" \
     "$OPENCLAW_HOME/workspace-it-engineer" \
@@ -245,7 +268,8 @@ if [ -f "$CONFIG_PATH" ]; then
     "$IT_BUILTIN_FILE" \
     "$IT_OVERRIDE" \
     "$OPENCLAW_HOME/workspace-it-engineer/DENIED_SKILLS" \
-    "$PROJECT_ROOT")"
+    "$PROJECT_ROOT" \
+    "$OPENCLAW_HOME")"
 
   MAIN_SKILLS_RESULT="$MAIN_SKILLS_RESULT" HRBP_SKILLS_RESULT="$HRBP_SKILLS_RESULT" IT_SKILLS_RESULT="$IT_SKILLS_RESULT" node -e "
     const fs = require('fs');

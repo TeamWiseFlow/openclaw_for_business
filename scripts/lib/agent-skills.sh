@@ -3,6 +3,7 @@
 #
 # 设计理念（OFB）：
 #   - 每个 Agent 默认都使用「全局基线技能集」（见 list_default_global_skill_names）
+#   - add-on / 项目级全局 skills 默认对所有 Agent 开放（见 list_global_shared_skill_names）
 #   - 可通过 BUILTIN_SKILLS（或显式参数）在基线之上追加 bundled skills
 #   - 可通过 DENIED_SKILLS（或显式参数）从最终列表中排除技能
 #   - 最终总是写入 agents.list[].skills，避免“空 skills 字段 => 全量技能泄露”
@@ -67,6 +68,40 @@ list_workspace_skill_names() {
       basename "$skill_dir"
     fi
   done | sort
+}
+
+list_global_shared_skill_names() {
+  local project_root="$1"
+  local openclaw_home="$2"
+  local shared_file="$openclaw_home/GLOBAL_SHARED_SKILLS"
+
+  # 优先读取运行时清单（由 apply-addons.sh 维护）
+  if [ -f "$shared_file" ]; then
+    split_skill_tokens "$(cat "$shared_file")" | sort -u
+    return
+  fi
+
+  # 兜底：从项目目录扫描「项目级 skills + addon 级 skills」
+  # 注意：只扫描 addons/*/skills，不扫描 addons/*/crew/*/skills
+  {
+    if [ -d "$project_root/skills" ]; then
+      for skill_dir in "$project_root"/skills/*/; do
+        [ -d "$skill_dir" ] || continue
+        if [ -f "${skill_dir}SKILL.md" ]; then
+          basename "$skill_dir"
+        fi
+      done
+    fi
+
+    if [ -d "$project_root/addons" ]; then
+      for skill_dir in "$project_root"/addons/*/skills/*/; do
+        [ -d "$skill_dir" ] || continue
+        if [ -f "${skill_dir}SKILL.md" ]; then
+          basename "$skill_dir"
+        fi
+      done
+    fi
+  } | sort -u
 }
 
 # 读取额外 bundled skills（来自 BUILTIN_SKILLS 文件或命令行参数）
@@ -135,6 +170,7 @@ resolve_agent_skills_json() {
   local explicit_denied_tokens="$5"
   local denied_file="$6"
   local project_root="$7"
+  local openclaw_home="${8:-$HOME/.openclaw}"
 
   local default_builtins=""
   default_builtins="$(list_default_global_skill_names)"
@@ -145,8 +181,11 @@ resolve_agent_skills_json() {
     "$builtin_file" \
     "$project_root")"
 
-  local merged_builtins=""
-  merged_builtins="$(printf '%s\n%s\n' "$default_builtins" "$additional_builtins" \
+  local global_shared_skills=""
+  global_shared_skills="$(list_global_shared_skill_names "$project_root" "$openclaw_home")"
+
+  local merged_global_skills=""
+  merged_global_skills="$(printf '%s\n%s\n%s\n' "$default_builtins" "$additional_builtins" "$global_shared_skills" \
     | awk 'NF && !seen[$0]++')"
 
   local denied_names
@@ -162,9 +201,9 @@ resolve_agent_skills_json() {
       if ! printf '%s\n' "$denied_names" | grep -Fxq "$skill"; then
         allowed_builtins="$allowed_builtins"$'\n'"$skill"
       fi
-    done <<< "$merged_builtins"
+    done <<< "$merged_global_skills"
   else
-    allowed_builtins="$merged_builtins"
+    allowed_builtins="$merged_global_skills"
   fi
 
   local workspace_skills

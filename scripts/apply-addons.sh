@@ -34,6 +34,15 @@ OPENCLAW_DIR="$PROJECT_ROOT/openclaw"
 OPENCLAW_HOME="$HOME/.openclaw"
 CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
 HRBP_ADD_AGENT_SCRIPT="$PROJECT_ROOT/crews/hrbp/skills/hrbp-recruit/scripts/add-agent.sh"
+GLOBAL_SHARED_SKILLS_FILE="$OPENCLAW_HOME/GLOBAL_SHARED_SKILLS"
+
+GLOBAL_SHARED_SKILLS_RAW=""
+append_global_shared_skill() {
+  local skill_name="$1"
+  [ -n "$skill_name" ] || return 0
+  GLOBAL_SHARED_SKILLS_RAW="${GLOBAL_SHARED_SKILLS_RAW}
+$skill_name"
+}
 
 # ─── 恢复上游到干净状态 ──────────────────────────────────────────
 cd "$OPENCLAW_DIR"
@@ -138,6 +147,7 @@ if [ -d "$PROJECT_ROOT/skills" ]; then
       skill_name="$(basename "$skill_dir")"
       cp -r "$skill_dir" "$OPENCLAW_DIR/skills/$skill_name"
       GLOBAL_SKILL_COUNT=$((GLOBAL_SKILL_COUNT + 1))
+      append_global_shared_skill "$skill_name"
     fi
   done
 fi
@@ -198,6 +208,7 @@ for addon_dir in "$ADDONS_DIR"/*/; do
         skill_name="$(basename "$skill_dir")"
         echo "    → $skill_name (global)"
         cp -r "$skill_dir" "$OPENCLAW_DIR/skills/$skill_name"
+        append_global_shared_skill "$skill_name"
       fi
     done
   fi
@@ -290,4 +301,17 @@ if [ "$ADDON_COUNT" -gt 0 ]; then
   echo "✅ All addons applied ($ADDON_COUNT loaded)"
 else
   echo "📦 No addons found"
+fi
+
+# ─── 写入全局共享 skills 清单（供 skills allowlist 计算使用） ──────
+mkdir -p "$OPENCLAW_HOME"
+printf '%s\n' "$GLOBAL_SHARED_SKILLS_RAW" \
+  | awk 'NF && !seen[$0]++' \
+  | sort > "$GLOBAL_SHARED_SKILLS_FILE"
+GLOBAL_SHARED_COUNT="$(wc -l < "$GLOBAL_SHARED_SKILLS_FILE" | tr -d ' ')"
+echo "🧾 Global shared skills catalog updated ($GLOBAL_SHARED_COUNT)"
+
+# ─── 重新同步 agents.list[].skills（纳入最新全局 skills）──────────
+if [ -f "$CONFIG_PATH" ] && [ -x "$PROJECT_ROOT/scripts/setup-crew.sh" ]; then
+  "$PROJECT_ROOT/scripts/setup-crew.sh"
 fi

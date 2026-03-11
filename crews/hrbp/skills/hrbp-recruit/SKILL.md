@@ -44,18 +44,22 @@ After user confirms the proposal:
    - `bash ./skills/hrbp-recruit/scripts/add-agent.sh <instance-id>`
    - Optional bind: `--bind <channel>:<accountId>`
    - Optional bundled skills add-on: `--builtin-skills <skill1,skill2|all>`
+   - Optional template metadata: `--template-id <template-id> --note <text>`
 2. This will:
    - Add instance to `agents.list` in openclaw.json
    - Update Main Agent's `subagents.allowAgents`
    - Add binding if specified
-   - Default: write `skills` allowlist = OFB baseline bundled skills + workspace skills
-   - If workspace has `DENIED_SKILLS`: final allowlist = (baseline bundled + optional additional bundled - denied) + workspace skills
+   - Default: write `skills` allowlist = OFB baseline bundled skills + 全局共享 skills（项目与 addon） + workspace skills
+   - If workspace has `DENIED_SKILLS`: final allowlist = (baseline bundled + optional additional bundled + global shared - denied) + workspace skills
    - If `--builtin-skills` is provided: treat as additional bundled skills（在基线上追加，而非替换）
    - Update Main Agent's MEMORY.md roster
+   - Update HRBP Agent's MEMORY.md（Instance Registry + Operation History）
 
 ### Step 6: Update HRBP Memory
-- Add entry to Instance Registry in MEMORY.md:
-  - Instance ID, source template, creation date, notes
+- No manual text edit required if Step 5 script succeeded.
+- Only verify HRBP MEMORY has registry/history entry; if missing, rerun add-agent.sh with:
+  - `--template-id <template-id>`
+  - `--note <text>`
 
 ### Step 7: Closeout
 Report to the user:

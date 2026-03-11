@@ -1,8 +1,9 @@
 #!/bin/bash
 # add-agent.sh - 注册新 Agent 到 openclaw.json
-# 用法: bash ./skills/hrbp-recruit/scripts/add-agent.sh <agent-id> [--bind <channel>:<accountId>] [--builtin-skills <skill1,skill2|all>]
+# 用法: bash ./skills/hrbp-recruit/scripts/add-agent.sh <agent-id> [--bind <channel>:<accountId>] [--builtin-skills <skill1,skill2|all>] [--template-id <template-id>] [--note <text>]
 # skill 规则：
 #   - 默认基线技能（OFB 全局）始终生效
+#   - addon / 项目级全局 skills 默认追加给所有 Agent
 #   - --builtin-skills / BUILTIN_SKILLS 用于在基线上追加技能（非替换）
 #   - DENIED_SKILLS 最终裁剪
 set -e
@@ -15,15 +16,18 @@ SYNC_TEAM_DIRECTORY_SCRIPT="$SCRIPT_DIR/../../hrbp-common/scripts/sync-team-dire
 source "$SCRIPT_DIR/../../hrbp-common/scripts/lib.sh"
 
 usage() {
-  echo "Usage: $0 <agent-id> [--bind <channel>:<accountId>] [--builtin-skills <skill1,skill2|all>]"
+  echo "Usage: $0 <agent-id> [--bind <channel>:<accountId>] [--builtin-skills <skill1,skill2|all>] [--template-id <template-id>] [--note <text>]"
   echo ""
   echo "Options:"
   echo "  --bind <channel>:<accountId>  Bind agent to a channel (Mode B direct routing)"
   echo "  --builtin-skills <skills>     Additional bundled skills on top of OFB baseline (comma-separated)"
+  echo "  --template-id <template-id>   Source template id (for HRBP memory registry)"
+  echo "  --note <text>                 Optional note (for HRBP memory registry)"
   echo ""
   echo "Examples:"
   echo "  $0 developer"
   echo "  $0 developer --builtin-skills browser-guide,summarize"
+  echo "  $0 short-video-ops --template-id content-writer --note '短视频运营岗'"
   echo "  $0 customer-service --bind wechat:wx_xxx"
   exit 1
 }
@@ -68,6 +72,51 @@ list_workspace_skill_names() {
       basename "$skill_dir"
     fi
   done | sort
+}
+
+list_global_shared_skill_names() {
+  local bundled_dir="$1"
+  local shared_file="$OPENCLAW_HOME/GLOBAL_SHARED_SKILLS"
+
+  # 优先读取运行时清单（由 apply-addons.sh 维护）
+  if [ -f "$shared_file" ]; then
+    split_skill_tokens "$(cat "$shared_file")" | sort -u
+    return
+  fi
+
+  # 兜底：若可定位到项目根目录，则扫描项目级与 addon 级全局 skills
+  local project_root=""
+  if [ -n "$bundled_dir" ] && [ -d "$bundled_dir" ]; then
+    local openclaw_dir
+    openclaw_dir="$(dirname "$bundled_dir")"
+    local candidate_root
+    candidate_root="$(dirname "$openclaw_dir")"
+    if [ -d "$candidate_root/skills" ] || [ -d "$candidate_root/addons" ]; then
+      project_root="$candidate_root"
+    fi
+  fi
+
+  [ -n "$project_root" ] || return 0
+
+  {
+    if [ -d "$project_root/skills" ]; then
+      for skill_dir in "$project_root"/skills/*/; do
+        [ -d "$skill_dir" ] || continue
+        if [ -f "${skill_dir}SKILL.md" ]; then
+          basename "$skill_dir"
+        fi
+      done
+    fi
+
+    if [ -d "$project_root/addons" ]; then
+      for skill_dir in "$project_root"/addons/*/skills/*/; do
+        [ -d "$skill_dir" ] || continue
+        if [ -f "${skill_dir}SKILL.md" ]; then
+          basename "$skill_dir"
+        fi
+      done
+    fi
+  } | sort -u
 }
 
 find_bundled_skills_dir() {
@@ -178,9 +227,11 @@ build_agent_skills_json() {
   baseline_bundled="$(list_default_global_skill_names)"
   local additional_bundled=""
   additional_bundled="$(resolve_additional_bundled_skill_names "$bundled_raw" "$bundled_dir")"
+  local global_shared_skills=""
+  global_shared_skills="$(list_global_shared_skill_names "$bundled_dir")"
 
-  local merged_bundled=""
-  merged_bundled="$(printf '%s\n%s\n' "$baseline_bundled" "$additional_bundled" \
+  local merged_global_skills=""
+  merged_global_skills="$(printf '%s\n%s\n%s\n' "$baseline_bundled" "$additional_bundled" "$global_shared_skills" \
     | awk 'NF && !seen[$0]++')"
 
   local allowed_bundled=""
@@ -190,9 +241,9 @@ build_agent_skills_json() {
       if ! printf '%s\n' "$denied_names" | grep -Fxq "$skill"; then
         allowed_bundled="$allowed_bundled"$'\n'"$skill"
       fi
-    done <<< "$merged_bundled"
+    done <<< "$merged_global_skills"
   else
-    allowed_bundled="$merged_bundled"
+    allowed_bundled="$merged_global_skills"
   fi
 
   local workspace_skills=""
@@ -219,6 +270,8 @@ validate_agent_id "$AGENT_ID"
 BIND_CHANNEL=""
 BIND_ACCOUNT=""
 BUILTIN_SKILLS_RAW=""
+TEMPLATE_ID=""
+RECRUIT_NOTE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --bind)
@@ -232,12 +285,36 @@ while [ $# -gt 0 ]; do
       BUILTIN_SKILLS_RAW="$2"
       shift 2
       ;;
+    --template-id)
+      [ -z "$2" ] && { echo "❌ --template-id requires <template-id>"; exit 1; }
+      TEMPLATE_ID="$2"
+      shift 2
+      ;;
+    --note)
+      [ -z "$2" ] && { echo "❌ --note requires <text>"; exit 1; }
+      RECRUIT_NOTE="$2"
+      shift 2
+      ;;
     *)
       echo "❌ Unknown option: $1"
       usage
       ;;
   esac
 done
+
+[ -n "$TEMPLATE_ID" ] || TEMPLATE_ID="$AGENT_ID"
+[ -n "$RECRUIT_NOTE" ] || RECRUIT_NOTE="auto-registered by hrbp-recruit"
+
+sanitize_inline_text() {
+  local raw="$1"
+  printf '%s\n' "$raw" \
+    | tr '\n' ' ' \
+    | sed 's/[|]/\//g; s/[[:space:]]\+/ /g; s/^ //; s/ $//'
+}
+
+TEMPLATE_ID_SANITIZED="$(sanitize_inline_text "$TEMPLATE_ID")"
+RECRUIT_NOTE_SANITIZED="$(sanitize_inline_text "$RECRUIT_NOTE")"
+TODAY_DATE="$(date +%F)"
 
 # 验证 workspace 存在
 WORKSPACE="$OPENCLAW_HOME/workspace-$AGENT_ID"
@@ -342,16 +419,16 @@ echo "  ✅ Added to agents.list"
 echo "  ✅ Updated Main Agent allowAgents"
 case "$SKILLS_MODE" in
   baseline-default)
-    echo "  ✅ Skill scope: OFB baseline bundled skills + workspace skills"
+    echo "  ✅ Skill scope: OFB baseline bundled skills + global shared skills + workspace skills"
     ;;
   baseline-minus-denied)
-    echo "  ✅ Skill scope: baseline bundled skills - DENIED_SKILLS + workspace skills"
+    echo "  ✅ Skill scope: baseline bundled + global shared - DENIED_SKILLS + workspace skills"
     ;;
   baseline-plus-additional)
-    echo "  ✅ Skill scope: baseline bundled skills + additional bundled skills + workspace skills"
+    echo "  ✅ Skill scope: baseline bundled + global shared + additional bundled + workspace skills"
     ;;
   baseline-plus-additional-minus-denied)
-    echo "  ✅ Skill scope: baseline bundled skills + additional bundled skills - DENIED_SKILLS + workspace skills"
+    echo "  ✅ Skill scope: baseline bundled + global shared + additional bundled - DENIED_SKILLS + workspace skills"
     ;;
 esac
 
@@ -381,6 +458,54 @@ if [ -f "$MAIN_MEMORY" ]; then
     ' "$MAIN_MEMORY" > "$TMP_MEMORY"
     mv "$TMP_MEMORY" "$MAIN_MEMORY"
     echo "  ✅ Updated Main Agent MEMORY.md roster"
+  fi
+fi
+
+# 更新 HRBP 的 MEMORY.md（Instance Registry + Operation History）
+HRBP_MEMORY="$OPENCLAW_HOME/workspace-hrbp/MEMORY.md"
+if [ -f "$HRBP_MEMORY" ]; then
+  REGISTRY_ROW="| $AGENT_ID | $TEMPLATE_ID_SANITIZED | $TODAY_DATE | $RECRUIT_NOTE_SANITIZED |"
+  HISTORY_LINE="- $TODAY_DATE: 招募 $AGENT_ID ($TEMPLATE_ID_SANITIZED) - $RECRUIT_NOTE_SANITIZED"
+
+  if grep -Fq "| $AGENT_ID |" "$HRBP_MEMORY" 2>/dev/null; then
+    echo "  ⚠️  Agent already in HRBP MEMORY registry, skipping registry row"
+  else
+    TMP_HRBP_MEMORY="$(mktemp "${HRBP_MEMORY}.tmp.XXXXXX")"
+    awk -v row="$REGISTRY_ROW" '
+      BEGIN { inserted = 0 }
+      /^## Operation History/ && inserted == 0 { print row; inserted = 1 }
+      { print }
+      END { if (inserted == 0) print row }
+    ' "$HRBP_MEMORY" > "$TMP_HRBP_MEMORY"
+    mv "$TMP_HRBP_MEMORY" "$HRBP_MEMORY"
+    echo "  ✅ Updated HRBP MEMORY instance registry"
+  fi
+
+  if grep -Fqx "$HISTORY_LINE" "$HRBP_MEMORY" 2>/dev/null; then
+    echo "  ⚠️  Recruit history entry already exists in HRBP MEMORY, skipping"
+  else
+    TMP_HRBP_HISTORY="$(mktemp "${HRBP_MEMORY}.tmp.XXXXXX")"
+    awk -v line="$HISTORY_LINE" '
+      BEGIN { inserted = 0 }
+      /^## Operation History/ {
+        print
+        print ""
+        print line
+        inserted = 1
+        next
+      }
+      { print }
+      END {
+        if (inserted == 0) {
+          print ""
+          print "## Operation History"
+          print ""
+          print line
+        }
+      }
+    ' "$HRBP_MEMORY" > "$TMP_HRBP_HISTORY"
+    mv "$TMP_HRBP_HISTORY" "$HRBP_MEMORY"
+    echo "  ✅ Updated HRBP MEMORY operation history"
   fi
 fi
 
