@@ -123,6 +123,7 @@ crews/
 ```
 ~/.openclaw/
 ├── openclaw.json               # 运行配置（agents.list[] 注册实例）
+├── TEAM_DIRECTORY.md           # 启用实例通讯录（自动生成）
 ├── workspace/                  # OpenClaw 默认 workspace
 ├── workspace-main/             # Main Agent 实例 workspace
 ├── workspace-hrbp/             # HRBP 实例 workspace
@@ -158,6 +159,11 @@ crews/
         ├── SKILL.md
         └── scripts/
 ```
+
+默认约定：
+- 非 IT 类模板建议默认屏蔽 `github`、`gh-issues`、`coding-agent`
+- `it-engineer` 模板默认不屏蔽上述三项
+- 若实例需要例外，可直接调整实例 workspace 内的 `DENIED_SKILLS`
 
 ### 4.2 index.md 格式
 

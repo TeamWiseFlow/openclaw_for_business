@@ -2,6 +2,11 @@
 
 ## 关于 OFB 项目
 
+## Crew 通讯录
+- 当前启用 crew 通讯录：`~/.openclaw/TEAM_DIRECTORY.md`
+- 本 workspace 会同步一份：`TEAM_DIRECTORY.md`
+- 任何 crew 增删改后，优先以该通讯录为准确认当前启用实例和路由方式
+
 ### 项目基本信息
 - **OFB 项目名称**：openclaw-for-business
 - **OFB 仓库地址**：https://github.com/TeamWiseFlow/openclaw_for_business

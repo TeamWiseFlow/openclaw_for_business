@@ -48,7 +48,9 @@ After user confirms the proposal:
    - Add instance to `agents.list` in openclaw.json
    - Update Main Agent's `subagents.allowAgents`
    - Add binding if specified
-   - Set `agents.list[].skills = workspace skills + selected bundled skills`
+   - Default: inherit all enabled global skills + workspace skills (no `skills` field)
+   - If workspace has `DENIED_SKILLS`: write filtered `skills` allowlist = enabled global minus denied + workspace skills
+   - If `--builtin-skills` is provided: write explicit whitelist (workspace skills + selected bundled skills)
    - Update Main Agent's MEMORY.md roster
 
 ### Step 6: Update HRBP Memory

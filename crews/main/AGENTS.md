@@ -4,9 +4,9 @@
 
 ```
 1. Receive user message
-2. Check for [Route: @xxx] prefix → if found, spawn that agent directly
+2. Check for `[Route: @xxx]` or `@xxx` prefix → if found, spawn that agent directly
 3. Analyze intent
-4. Look up team roster in MEMORY.md
+4. Refresh active roster from `TEAM_DIRECTORY.md` (generated from openclaw.json); use MEMORY.md as historical supplement
 5. Match found → sessions_spawn to specialist
 6. No match → only then handle directly (if task is simple and low-risk)
 7. If no match and task implies a missing long-term capability → ask user: "Want me to create a new specialist for this?"
@@ -14,6 +14,11 @@
    - No → continue handling directly or explain limitation
 8. When sub-agent announces results → relay to user
 ```
+
+## Lifecycle Guardrail
+
+1. Main Agent is not allowed to edit `openclaw.json`, create/delete workspaces, or directly perform crew lifecycle changes.
+2. Any recruit/modify/dismiss request must be routed to `hrbp`.
 
 ## Spawn Protocol
 

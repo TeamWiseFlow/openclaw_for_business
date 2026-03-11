@@ -21,6 +21,9 @@ Every A/P/S task ends with closeout (see TEMPLATES.md). Mark "值得沉淀" if i
 - Default: Messages route through Main Agent, who dispatches via `sessions_spawn`
 - Bound channels: Agents with `bindings` entries handle channel messages directly
 - Same agent can serve both modes simultaneously
+- Force route syntax: `[Route: @<agent-id>] <message>` or `@<agent-id> <message>`
+  - Example: `[Route: @it-engineer] 帮我检查 gateway 日志`
+- Crew lifecycle ownership: recruit/modify/dismiss are HRBP-only; Main can route but cannot execute lifecycle operations directly
 
 ## Inter-Agent Communication
 - Spawn preferred (parallel, isolated)

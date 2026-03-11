@@ -3,6 +3,11 @@
 ## Template Library
 Browse templates at: `~/.openclaw/hrbp-templates/index.md`
 
+## Active Directory
+- Current active crew directory: `~/.openclaw/TEAM_DIRECTORY.md`
+- A local copy is synced to this workspace as `TEAM_DIRECTORY.md`
+- Recruit/modify/remove operations must keep this directory synchronized
+
 ### Built-in Templates (managed by setup-crew.sh, not HRBP)
 - `main` — Team dispatcher and router
 - `hrbp` — Agent lifecycle management (this agent)

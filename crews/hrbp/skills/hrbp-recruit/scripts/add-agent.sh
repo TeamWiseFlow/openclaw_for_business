@@ -5,6 +5,8 @@ set -e
 
 OPENCLAW_HOME="$HOME/.openclaw"
 CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SYNC_TEAM_DIRECTORY_SCRIPT="$SCRIPT_DIR/../../hrbp-common/scripts/sync-team-directory.sh"
 
 usage() {
   echo "Usage: $0 <agent-id> [--bind <channel>:<accountId>] [--builtin-skills <skill1,skill2|all>]"
@@ -18,6 +20,15 @@ usage() {
   echo "  $0 developer --builtin-skills browser-guide,summarize"
   echo "  $0 customer-service --bind wechat:wx_xxx"
   exit 1
+}
+
+validate_agent_id() {
+  local id="$1"
+  if ! printf '%s\n' "$id" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
+    echo "❌ Invalid agent-id: $id"
+    echo "   Expected: lowercase letters, numbers, hyphens (e.g. customer-service-a)"
+    exit 1
+  fi
 }
 
 split_skill_tokens() {
@@ -83,12 +94,39 @@ list_bundled_skill_names() {
   [ -n "$bundled_dir" ] || return
   [ -d "$bundled_dir" ] || return
 
+  local disabled_skills=""
+  disabled_skills="$(
+    CONFIG_PATH="$CONFIG_PATH" node -e '
+const fs = require("fs");
+const path = process.env.CONFIG_PATH;
+if (!path || !fs.existsSync(path)) process.exit(0);
+try {
+  const c = JSON.parse(fs.readFileSync(path, "utf8"));
+  const entries = c?.skills?.entries || {};
+  for (const [name, entry] of Object.entries(entries)) {
+    if (entry && entry.enabled === false) console.log(name);
+  }
+} catch (_) {}
+'
+  )"
+
   for skill_dir in "$bundled_dir"/*/; do
     [ -d "$skill_dir" ] || continue
     if [ -f "${skill_dir}SKILL.md" ]; then
-      basename "$skill_dir"
+      local skill_name
+      skill_name="$(basename "$skill_dir")"
+      if [ -n "$disabled_skills" ] && printf '%s\n' "$disabled_skills" | grep -Fxq "$skill_name"; then
+        continue
+      fi
+      printf '%s\n' "$skill_name"
     fi
   done | sort
+}
+
+resolve_denied_skill_names() {
+  local denied_file="$1"
+  [ -f "$denied_file" ] || return 0
+  split_skill_tokens "$(cat "$denied_file")"
 }
 
 resolve_enabled_bundled_skill_names() {
@@ -124,7 +162,7 @@ resolve_enabled_bundled_skill_names() {
   done <<< "$tokens"
 }
 
-build_skills_json() {
+build_whitelist_skills_json() {
   local workspace_dir="$1"
   local bundled_raw="$2"
   local bundled_dir="$3"
@@ -146,9 +184,42 @@ console.log(JSON.stringify(Array.from(new Set(lines))));
 '
 }
 
+build_denied_filter_skills_json() {
+  local workspace_dir="$1"
+  local denied_names="$2"
+  local bundled_dir="$3"
+
+  local enabled_bundled_skills=""
+  enabled_bundled_skills="$(list_bundled_skill_names "$bundled_dir")"
+
+  local allowed_bundled_skills=""
+  while IFS= read -r skill; do
+    [ -n "$skill" ] || continue
+    if ! printf '%s\n' "$denied_names" | grep -Fxq "$skill"; then
+      allowed_bundled_skills="$allowed_bundled_skills"$'\n'"$skill"
+    fi
+  done <<< "$enabled_bundled_skills"
+
+  local workspace_skills=""
+  workspace_skills="$(list_workspace_skill_names "$workspace_dir")"
+
+  printf '%s\n%s\n' "$allowed_bundled_skills" "$workspace_skills" \
+    | awk 'NF && !seen[$0]++' \
+    | node -e '
+const fs = require("fs");
+const lines = fs.readFileSync(0, "utf8")
+  .split(/\r?\n/)
+  .map((line) => line.trim())
+  .filter(Boolean);
+console.log(JSON.stringify(Array.from(new Set(lines))));
+'
+}
+
 [ -z "$1" ] && usage
 AGENT_ID="$1"
 shift
+
+validate_agent_id "$AGENT_ID"
 
 BIND_CHANNEL=""
 BIND_ACCOUNT=""
@@ -187,7 +258,21 @@ if [ -z "$BUILTIN_SKILLS_RAW" ] && [ -f "$BUILTIN_FILE" ]; then
 fi
 
 BUNDLED_SKILLS_DIR="$(find_bundled_skills_dir)"
-SKILLS_JSON="$(build_skills_json "$WORKSPACE" "$BUILTIN_SKILLS_RAW" "$BUNDLED_SKILLS_DIR")"
+DENIED_FILE="$WORKSPACE/DENIED_SKILLS"
+DENIED_NAMES="$(resolve_denied_skill_names "$DENIED_FILE")"
+SKILLS_JSON="[]"
+WRITE_SKILLS_FIELD="false"
+SKILLS_MODE="inherit-all-enabled"
+
+if [ -n "$(split_skill_tokens "$BUILTIN_SKILLS_RAW")" ]; then
+  SKILLS_JSON="$(build_whitelist_skills_json "$WORKSPACE" "$BUILTIN_SKILLS_RAW" "$BUNDLED_SKILLS_DIR")"
+  WRITE_SKILLS_FIELD="true"
+  SKILLS_MODE="explicit-whitelist"
+elif [ -n "$DENIED_NAMES" ]; then
+  SKILLS_JSON="$(build_denied_filter_skills_json "$WORKSPACE" "$DENIED_NAMES" "$BUNDLED_SKILLS_DIR")"
+  WRITE_SKILLS_FIELD="true"
+  SKILLS_MODE="deny-filter"
+fi
 
 # 验证 openclaw.json 存在
 if [ ! -f "$CONFIG_PATH" ]; then
@@ -196,9 +281,9 @@ if [ ! -f "$CONFIG_PATH" ]; then
 fi
 
 # 检查 agent 是否已存在
-if node -e "
-  const c = JSON.parse(require('fs').readFileSync('$CONFIG_PATH','utf8'));
-  const exists = (c.agents?.list || []).some(a => a.id === '$AGENT_ID');
+if AGENT_ID="$AGENT_ID" CONFIG_PATH="$CONFIG_PATH" node -e "
+  const c = JSON.parse(require('fs').readFileSync(process.env.CONFIG_PATH, 'utf8'));
+  const exists = (c.agents?.list || []).some(a => a.id === process.env.AGENT_ID);
   process.exit(exists ? 0 : 1);
 " 2>/dev/null; then
   echo "❌ Agent '$AGENT_ID' already exists in openclaw.json"
@@ -208,49 +293,64 @@ fi
 echo "📦 Adding agent: $AGENT_ID"
 
 # 更新 openclaw.json
-SKILLS_JSON="$SKILLS_JSON" node -e "
+AGENT_ID="$AGENT_ID" BIND_CHANNEL="$BIND_CHANNEL" BIND_ACCOUNT="$BIND_ACCOUNT" CONFIG_PATH="$CONFIG_PATH" SKILLS_JSON="$SKILLS_JSON" WRITE_SKILLS_FIELD="$WRITE_SKILLS_FIELD" node -e "
   const fs = require('fs');
-  const c = JSON.parse(fs.readFileSync('$CONFIG_PATH','utf8'));
+  const c = JSON.parse(fs.readFileSync(process.env.CONFIG_PATH, 'utf8'));
   const agentSkills = JSON.parse(process.env.SKILLS_JSON || '[]');
+  const writeSkills = process.env.WRITE_SKILLS_FIELD === 'true';
+  const agentId = process.env.AGENT_ID;
 
   // 1. 添加到 agents.list
   if (!c.agents) c.agents = {};
   if (!c.agents.list) c.agents.list = [];
-  c.agents.list.push({
-    id: '$AGENT_ID',
-    name: '$AGENT_ID',
-    workspace: '~/.openclaw/workspace-$AGENT_ID',
-    skills: agentSkills
-  });
+  const newAgent = {
+    id: agentId,
+    name: agentId,
+    workspace: '~/.openclaw/workspace-' + agentId,
+  };
+  if (writeSkills) {
+    newAgent.skills = agentSkills;
+  }
+  c.agents.list.push(newAgent);
 
   // 2. 更新 Main Agent 的 allowAgents
   const main = c.agents.list.find(a => a.id === 'main');
   if (main) {
     if (!main.subagents) main.subagents = {};
     if (!main.subagents.allowAgents) main.subagents.allowAgents = [];
-    if (!main.subagents.allowAgents.includes('$AGENT_ID')) {
-      main.subagents.allowAgents.push('$AGENT_ID');
+    if (!main.subagents.allowAgents.includes(agentId)) {
+      main.subagents.allowAgents.push(agentId);
     }
   }
 
   // 3. 如果需要绑定渠道
-  const bindChannel = '$BIND_CHANNEL';
-  const bindAccount = '$BIND_ACCOUNT';
+  const bindChannel = process.env.BIND_CHANNEL || '';
+  const bindAccount = process.env.BIND_ACCOUNT || '';
   if (bindChannel) {
     if (!c.bindings) c.bindings = [];
     c.bindings.push({
-      agentId: '$AGENT_ID',
+      agentId,
       match: { channel: bindChannel, accountId: bindAccount },
-      comment: '$AGENT_ID direct channel binding'
+      comment: agentId + ' direct channel binding'
     });
   }
 
-  fs.writeFileSync('$CONFIG_PATH', JSON.stringify(c, null, 2) + '\n');
+  fs.writeFileSync(process.env.CONFIG_PATH, JSON.stringify(c, null, 2) + '\n');
 "
 
 echo "  ✅ Added to agents.list"
 echo "  ✅ Updated Main Agent allowAgents"
-echo "  ✅ Skill filter applied (workspace skills + selected bundled skills)"
+case "$SKILLS_MODE" in
+  inherit-all-enabled)
+    echo "  ✅ Skill scope: inherit all enabled global skills + workspace skills (no per-agent filter)"
+    ;;
+  deny-filter)
+    echo "  ✅ Skill scope: DENIED_SKILLS applied (enabled global skills minus denied + workspace skills)"
+    ;;
+  explicit-whitelist)
+    echo "  ✅ Skill scope: explicit builtin whitelist + workspace skills"
+    ;;
+esac
 
 if [ -n "$BIND_CHANNEL" ]; then
   echo "  ✅ Added binding: $BIND_CHANNEL:$BIND_ACCOUNT"
@@ -279,6 +379,12 @@ if [ -f "$MAIN_MEMORY" ]; then
     mv "$TMP_MEMORY" "$MAIN_MEMORY"
     echo "  ✅ Updated Main Agent MEMORY.md roster"
   fi
+fi
+
+if [ -f "$SYNC_TEAM_DIRECTORY_SCRIPT" ]; then
+  OPENCLAW_HOME="$OPENCLAW_HOME" CONFIG_PATH="$CONFIG_PATH" bash "$SYNC_TEAM_DIRECTORY_SCRIPT" >/dev/null 2>&1 || {
+    echo "  ⚠️  Failed to sync TEAM_DIRECTORY.md"
+  }
 fi
 
 echo ""

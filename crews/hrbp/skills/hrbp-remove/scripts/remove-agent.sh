@@ -5,6 +5,8 @@ set -e
 
 OPENCLAW_HOME="$HOME/.openclaw"
 CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SYNC_TEAM_DIRECTORY_SCRIPT="$SCRIPT_DIR/../../hrbp-common/scripts/sync-team-directory.sh"
 
 usage() {
   echo "Usage: $0 <agent-id>"
@@ -14,8 +16,19 @@ usage() {
   exit 1
 }
 
+validate_agent_id() {
+  local id="$1"
+  if ! printf '%s\n' "$id" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
+    echo "❌ Invalid agent-id: $id"
+    echo "   Expected: lowercase letters, numbers, hyphens (e.g. customer-service-a)"
+    exit 1
+  fi
+}
+
 [ -z "$1" ] && usage
 AGENT_ID="$1"
+
+validate_agent_id "$AGENT_ID"
 
 # 安全检查：保护 main、hrbp 和 it-engineer
 if [ "$AGENT_ID" = "main" ] || [ "$AGENT_ID" = "hrbp" ] || [ "$AGENT_ID" = "it-engineer" ]; then
@@ -30,9 +43,9 @@ if [ ! -f "$CONFIG_PATH" ]; then
 fi
 
 # 验证 agent 存在
-if ! node -e "
-  const c = JSON.parse(require('fs').readFileSync('$CONFIG_PATH','utf8'));
-  const exists = (c.agents?.list || []).some(a => a.id === '$AGENT_ID');
+if ! AGENT_ID="$AGENT_ID" CONFIG_PATH="$CONFIG_PATH" node -e "
+  const c = JSON.parse(require('fs').readFileSync(process.env.CONFIG_PATH, 'utf8'));
+  const exists = (c.agents?.list || []).some(a => a.id === process.env.AGENT_ID);
   process.exit(exists ? 0 : 1);
 " 2>/dev/null; then
   echo "❌ Agent '$AGENT_ID' not found in openclaw.json"
@@ -42,27 +55,28 @@ fi
 echo "🗑️  Removing agent: $AGENT_ID"
 
 # 1. 从 openclaw.json 移除
-node -e "
+AGENT_ID="$AGENT_ID" CONFIG_PATH="$CONFIG_PATH" node -e "
   const fs = require('fs');
-  const c = JSON.parse(fs.readFileSync('$CONFIG_PATH','utf8'));
+  const c = JSON.parse(fs.readFileSync(process.env.CONFIG_PATH, 'utf8'));
+  const agentId = process.env.AGENT_ID;
 
   // 从 agents.list 移除
   if (c.agents?.list) {
-    c.agents.list = c.agents.list.filter(a => a.id !== '$AGENT_ID');
+    c.agents.list = c.agents.list.filter(a => a.id !== agentId);
   }
 
   // 从 Main Agent 的 allowAgents 移除
   const main = (c.agents?.list || []).find(a => a.id === 'main');
   if (main?.subagents?.allowAgents) {
-    main.subagents.allowAgents = main.subagents.allowAgents.filter(id => id !== '$AGENT_ID');
+    main.subagents.allowAgents = main.subagents.allowAgents.filter(id => id !== agentId);
   }
 
   // 从 bindings 移除
   if (c.bindings) {
-    c.bindings = c.bindings.filter(b => b.agentId !== '$AGENT_ID');
+    c.bindings = c.bindings.filter(b => b.agentId !== agentId);
   }
 
-  fs.writeFileSync('$CONFIG_PATH', JSON.stringify(c, null, 2) + '\n');
+  fs.writeFileSync(process.env.CONFIG_PATH, JSON.stringify(c, null, 2) + '\n');
 "
 echo "  ✅ Removed from openclaw.json"
 
@@ -88,6 +102,12 @@ if [ -f "$MAIN_MEMORY" ]; then
     mv "$TMP_MEMORY" "$MAIN_MEMORY"
     echo "  ✅ Removed from Main Agent MEMORY.md roster"
   fi
+fi
+
+if [ -f "$SYNC_TEAM_DIRECTORY_SCRIPT" ]; then
+  OPENCLAW_HOME="$OPENCLAW_HOME" CONFIG_PATH="$CONFIG_PATH" bash "$SYNC_TEAM_DIRECTORY_SCRIPT" >/dev/null 2>&1 || {
+    echo "  ⚠️  Failed to sync TEAM_DIRECTORY.md"
+  }
 fi
 
 echo ""

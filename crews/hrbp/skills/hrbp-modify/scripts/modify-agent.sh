@@ -5,6 +5,8 @@ set -e
 
 OPENCLAW_HOME="$HOME/.openclaw"
 CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SYNC_TEAM_DIRECTORY_SCRIPT="$SCRIPT_DIR/../../hrbp-common/scripts/sync-team-directory.sh"
 
 usage() {
   echo "Usage: $0 <agent-id> [--bind <channel>:<accountId>] [--unbind <channel>]"
@@ -19,9 +21,20 @@ usage() {
   exit 1
 }
 
+validate_agent_id() {
+  local id="$1"
+  if ! printf '%s\n' "$id" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
+    echo "❌ Invalid agent-id: $id"
+    echo "   Expected: lowercase letters, numbers, hyphens (e.g. customer-service-a)"
+    exit 1
+  fi
+}
+
 [ -z "$1" ] && usage
 AGENT_ID="$1"
 shift
+
+validate_agent_id "$AGENT_ID"
 
 BIND_CHANNEL=""
 BIND_ACCOUNT=""
@@ -58,9 +71,9 @@ if [ ! -f "$CONFIG_PATH" ]; then
 fi
 
 # 验证 agent 存在
-if ! node -e "
-  const c = JSON.parse(require('fs').readFileSync('$CONFIG_PATH','utf8'));
-  const exists = (c.agents?.list || []).some(a => a.id === '$AGENT_ID');
+if ! AGENT_ID="$AGENT_ID" CONFIG_PATH="$CONFIG_PATH" node -e "
+  const c = JSON.parse(require('fs').readFileSync(process.env.CONFIG_PATH, 'utf8'));
+  const exists = (c.agents?.list || []).some(a => a.id === process.env.AGENT_ID);
   process.exit(exists ? 0 : 1);
 " 2>/dev/null; then
   echo "❌ Agent '$AGENT_ID' not found in openclaw.json"
@@ -69,20 +82,21 @@ fi
 
 echo "🔧 Modifying agent: $AGENT_ID"
 
-node -e "
+AGENT_ID="$AGENT_ID" CONFIG_PATH="$CONFIG_PATH" UNBIND_CHANNEL="$UNBIND_CHANNEL" BIND_CHANNEL="$BIND_CHANNEL" BIND_ACCOUNT="$BIND_ACCOUNT" node -e "
   const fs = require('fs');
-  const c = JSON.parse(fs.readFileSync('$CONFIG_PATH','utf8'));
+  const c = JSON.parse(fs.readFileSync(process.env.CONFIG_PATH, 'utf8'));
   if (!c.bindings) c.bindings = [];
 
-  const unbindChannel = '$UNBIND_CHANNEL';
-  const bindChannel = '$BIND_CHANNEL';
-  const bindAccount = '$BIND_ACCOUNT';
+  const unbindChannel = process.env.UNBIND_CHANNEL || '';
+  const bindChannel = process.env.BIND_CHANNEL || '';
+  const bindAccount = process.env.BIND_ACCOUNT || '';
+  const agentId = process.env.AGENT_ID;
 
   // Remove binding
   if (unbindChannel) {
     const before = c.bindings.length;
     c.bindings = c.bindings.filter(b =>
-      !(b.agentId === '$AGENT_ID' && b.match?.channel === unbindChannel)
+      !(b.agentId === agentId && b.match?.channel === unbindChannel)
     );
     if (c.bindings.length < before) {
       console.log('  ✅ Removed binding: ' + unbindChannel);
@@ -95,26 +109,26 @@ node -e "
   if (bindChannel) {
     // Remove existing binding for same agent+channel
     c.bindings = c.bindings.filter(b =>
-      !(b.agentId === '$AGENT_ID' && b.match?.channel === bindChannel)
+      !(b.agentId === agentId && b.match?.channel === bindChannel)
     );
     c.bindings.push({
-      agentId: '$AGENT_ID',
+      agentId,
       match: { channel: bindChannel, accountId: bindAccount },
-      comment: '$AGENT_ID direct channel binding'
+      comment: agentId + ' direct channel binding'
     });
     console.log('  ✅ Added binding: ' + bindChannel + ':' + bindAccount);
   }
 
-  fs.writeFileSync('$CONFIG_PATH', JSON.stringify(c, null, 2) + '\n');
+  fs.writeFileSync(process.env.CONFIG_PATH, JSON.stringify(c, null, 2) + '\n');
 "
 
 # 更新 Main Agent 的 MEMORY.md
 MAIN_MEMORY="$OPENCLAW_HOME/workspace-main/MEMORY.md"
 if [ -f "$MAIN_MEMORY" ]; then
   # 确定新的路由模式
-  HAS_BINDING=$(node -e "
-    const c = JSON.parse(require('fs').readFileSync('$CONFIG_PATH','utf8'));
-    const has = (c.bindings || []).some(b => b.agentId === '$AGENT_ID');
+  HAS_BINDING=$(AGENT_ID="$AGENT_ID" CONFIG_PATH="$CONFIG_PATH" node -e "
+    const c = JSON.parse(require('fs').readFileSync(process.env.CONFIG_PATH, 'utf8'));
+    const has = (c.bindings || []).some(b => b.agentId === process.env.AGENT_ID);
     console.log(has ? 'yes' : 'no');
   ")
   if [ "$HAS_BINDING" = "yes" ]; then
@@ -127,6 +141,12 @@ if [ -f "$MAIN_MEMORY" ]; then
   if grep -q "^| $AGENT_ID " "$MAIN_MEMORY" 2>/dev/null; then
     echo "  ✅ Updated Main Agent MEMORY.md (route mode: $ROUTE_MODE)"
   fi
+fi
+
+if [ -f "$SYNC_TEAM_DIRECTORY_SCRIPT" ]; then
+  OPENCLAW_HOME="$OPENCLAW_HOME" CONFIG_PATH="$CONFIG_PATH" bash "$SYNC_TEAM_DIRECTORY_SCRIPT" >/dev/null 2>&1 || {
+    echo "  ⚠️  Failed to sync TEAM_DIRECTORY.md"
+  }
 fi
 
 echo ""

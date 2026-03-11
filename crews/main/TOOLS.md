@@ -7,3 +7,4 @@
 ## Tool Usage Rules
 - Always use `sessions_spawn` for specialist tasks; do not attempt to handle them directly
 - For simple Q-type questions, answer directly without spawning
+- Crew lifecycle operations are forbidden in Main Agent; route those requests to `hrbp`

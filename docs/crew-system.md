@@ -89,6 +89,7 @@ skills/                    # 全局共享技能（项目根目录，所有 Agent
 ```
 ~/.openclaw/
 ├── openclaw.json               # 运行配置（agents.list[] 注册实例）
+├── TEAM_DIRECTORY.md           # 启用 crew 通讯录（由脚本自动同步）
 ├── workspace-main/             # Main Agent 实例 workspace
 ├── workspace-hrbp/             # HRBP 实例 workspace
 ├── workspace-it-engineer/      # IT Engineer 实例 workspace
@@ -109,6 +110,11 @@ skills/                    # 全局共享技能（项目根目录，所有 Agent
 |------|------|--------|----------|
 | 全局共享 | `skills/`（项目根目录） | `openclaw/skills/` | 所有 Agent |
 | 模板专属 | `crews/<template>/skills/` | `~/.openclaw/workspace-<instance>/skills/` | 仅该实例 |
+
+默认策略：
+- 非 IT 类模板默认带 `DENIED_SKILLS`（`github`/`gh-issues`/`coding-agent`）
+- IT Engineer 模板不屏蔽这三项
+- 实例可按需修改自身 `DENIED_SKILLS`
 
 ## 核心组件
 
@@ -168,6 +174,7 @@ Crew 实例有三种创建方式：
 | 脚本 | 用途 |
 |------|------|
 | `scripts/setup-crew.sh` | 安装多 Agent 系统（部署内置 Crew、同步模板库、更新配置，幂等） |
+| `crews/hrbp/skills/hrbp-common/scripts/sync-team-directory.sh` | 生成并同步 `TEAM_DIRECTORY.md` 到 `~/.openclaw/` 与各实例 workspace |
 | `crews/hrbp/skills/hrbp-recruit/scripts/add-agent.sh` | HRBP 内部：注册新实例 |
 | `crews/hrbp/skills/hrbp-modify/scripts/modify-agent.sh` | HRBP 内部：修改实例渠道绑定 |
 | `crews/hrbp/skills/hrbp-remove/scripts/remove-agent.sh` | HRBP 内部：移除实例（workspace 归档） |
@@ -181,6 +188,7 @@ Agent 实例配置在 `~/.openclaw/openclaw.json` 中（仅使用上游原生字
 - `agents.list[]` — 实例列表（id、name、workspace、subagents）
 - `agents.list[].skills` — 实例 skill 白名单（有 DENIED_SKILLS 时自动计算）
 - `bindings[]` — 渠道绑定（模式 B 直连）
+- `TEAM_DIRECTORY.md` — 基于 `agents.list[]` + `bindings[]` 的实时通讯录
 
 模板-实例映射关系由 HRBP 的 MEMORY.md 维护，不侵入 openclaw.json。
 
@@ -191,3 +199,11 @@ Agent 实例配置在 `~/.openclaw/openclaw.json` 中（仅使用上游原生字
 | spawn | 通过 Main Agent 路由 | `allowAgents` 列表 |
 | binding | 渠道直连 | `bindings[]` 条目 |
 | both | 两种方式共存 | 同时配置 |
+
+强制路由写法：
+- `[Route: @it-engineer] 帮我看下系统日志`
+- `@it-engineer 帮我看下系统日志`
+
+生命周期权限：
+- 仅 `hrbp` 可以执行 recruit/modify/remove
+- `main` 只能识别并路由到 `hrbp`

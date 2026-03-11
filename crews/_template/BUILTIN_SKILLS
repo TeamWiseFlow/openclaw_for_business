@@ -1,6 +1,6 @@
 # Optional bundled OpenClaw skills for this role.
 # Format: one skill name per line (or comma-separated on one line).
-# Keep empty to allow only workspace-local skills.
+# Keep empty to inherit all enabled global skills (except DENIED_SKILLS) plus workspace-local skills.
 # Example:
 # browser-guide
 # summarize

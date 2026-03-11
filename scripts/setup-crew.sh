@@ -13,6 +13,7 @@ FORCE=false
 
 # 内置 Crew 列表（全局唯一，不可删除，不可多实例）
 BUILTIN_CREWS="main hrbp it-engineer"
+SYNC_TEAM_DIRECTORY_SCRIPT="$CREWS_DIR/hrbp/skills/hrbp-common/scripts/sync-team-directory.sh"
 
 source "$SCRIPT_DIR/lib/agent-skills.sh"
 
@@ -313,3 +314,9 @@ echo "Installed locations:"
 echo "  Workspaces:  $OPENCLAW_HOME/workspace-main/, workspace-hrbp/, workspace-it-engineer/"
 echo "  Templates:   $OPENCLAW_HOME/hrbp-templates/"
 echo "  Config:      $CONFIG_PATH"
+
+if [ -f "$SYNC_TEAM_DIRECTORY_SCRIPT" ]; then
+  bash "$SYNC_TEAM_DIRECTORY_SCRIPT" >/dev/null 2>&1 || {
+    echo "  ⚠️  Failed to sync TEAM_DIRECTORY.md"
+  }
+fi
