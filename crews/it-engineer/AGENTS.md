@@ -39,7 +39,7 @@
 4. 如果空闲 → 告知用户升级步骤，等待 L3 确认
 5. 用户确认后执行：
    cd <OFB项目目录>
-   ./scripts/update-upstream.sh
+   ./scripts/upgrade.sh
 6. 观察升级过程输出，如有报错立即处理
 7. 升级完成后重启服务（reinstall-daemon.sh 或 dev.sh）
 8. 验证系统运行正常

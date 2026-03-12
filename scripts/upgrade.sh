@@ -1,0 +1,130 @@
+#!/bin/bash
+# upgrade.sh - 一键升级 OFB（自身代码 + openclaw 引擎 + 配置同步）
+#
+# 适用场景：
+#   - 通过 release 包安装的用户（首次运行会自动 git init）
+#   - git clone 安装的用户（直接拉取最新代码）
+#
+# 执行流程：
+#   1. 验证 OFB 目录合法性
+#   2. 初始化 git remote（如未初始化）或验证 remote URL
+#   3. git fetch + reset --hard 拉取最新 OFB 代码
+#      - addons/ 在 .gitignore 中，不受影响
+#      - ~/.openclaw/ 在 OFB 目录外，不受影响
+#   4. 读取 openclaw.version，按锚定版本检出 openclaw 子目录
+#      - 若已是目标 commit，跳过耗时的 install/build
+#   5. 调用 apply-addons.sh（内含 setup-crew.sh，只需调一次）
+#
+# ⚠️  升级前请确保系统空闲（无 agent 会话正在处理任务）
+set -e
+
+OFB_REPO="https://github.com/TeamWiseFlow/openclaw_for_business.git"
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OPENCLAW_DIR="$PROJECT_ROOT/openclaw"
+VERSION_FILE="$PROJECT_ROOT/openclaw.version"
+
+cd "$PROJECT_ROOT"
+
+echo "🔄 OpenClaw for Business — Upgrade"
+echo "   Project root: $PROJECT_ROOT"
+echo ""
+
+# ─── 1. 验证当前目录是 OFB 项目 ──────────────────────────────────
+if [ ! -f "$PROJECT_ROOT/scripts/apply-addons.sh" ] || [ ! -d "$OPENCLAW_DIR" ]; then
+  echo "❌ This does not look like an OFB project directory."
+  echo "   Expected: scripts/apply-addons.sh and openclaw/ subdirectory"
+  echo "   Please run this script from within your OFB project folder."
+  exit 1
+fi
+
+# ─── 2. 配置 git remote ─��────────────────────────────────────────
+if [ ! -d "$PROJECT_ROOT/.git" ]; then
+  echo "📦 Initializing git repository..."
+  git init
+  git remote add origin "$OFB_REPO"
+  echo "  ✅ git initialized, remote set to $OFB_REPO"
+else
+  CURRENT_REMOTE="$(git remote get-url origin 2>/dev/null || echo "")"
+  if [ -z "$CURRENT_REMOTE" ]; then
+    git remote add origin "$OFB_REPO"
+    echo "  ✅ Remote 'origin' added: $OFB_REPO"
+  elif [ "$CURRENT_REMOTE" != "$OFB_REPO" ]; then
+    echo "  ℹ️  Current remote: $CURRENT_REMOTE"
+    echo "  ℹ️  Official OFB repo: $OFB_REPO"
+    echo ""
+    echo "  Remote is not the official OFB repo. Continue anyway? [y/N]"
+    read -r reply
+    case "$reply" in
+      y|Y) echo "  Continuing with existing remote..." ;;
+      *) echo "  Aborted. To use the official repo:"; echo "    git remote set-url origin $OFB_REPO"; exit 0 ;;
+    esac
+  fi
+fi
+
+# ─── 3. 拉取最新 OFB 代码 ────────────────────────────────────────
+echo "📥 Fetching latest OFB code..."
+git fetch origin main
+
+COMMITS_BEHIND="$(git rev-list HEAD..origin/main --count 2>/dev/null || echo "?")"
+if [ "$COMMITS_BEHIND" = "0" ]; then
+  echo "  ✅ OFB code is already up to date."
+  OFB_UPDATED=false
+else
+  echo "  📊 $COMMITS_BEHIND new commit(s) available"
+  git reset --hard origin/main
+  echo "  ✅ OFB code updated"
+  OFB_UPDATED=true
+fi
+echo ""
+
+# ─── 4. 按锚定版本更新 openclaw 引擎 ────────────────────────────
+if [ ! -f "$VERSION_FILE" ]; then
+  echo "❌ openclaw.version not found at $VERSION_FILE"
+  exit 1
+fi
+
+# shellcheck source=../openclaw.version
+. "$VERSION_FILE"
+
+if [ -z "$OPENCLAW_COMMIT" ]; then
+  echo "❌ OPENCLAW_COMMIT not set in openclaw.version"
+  exit 1
+fi
+
+echo "🔍 openclaw target: $OPENCLAW_VERSION ($OPENCLAW_COMMIT)"
+
+CURRENT_COMMIT="$(git -C "$OPENCLAW_DIR" rev-parse HEAD 2>/dev/null || echo "")"
+if [ "$CURRENT_COMMIT" = "$OPENCLAW_COMMIT" ]; then
+  echo "  ✅ openclaw is already at target commit, skipping install/build."
+  OPENCLAW_UPDATED=false
+else
+  echo "  Current commit: ${CURRENT_COMMIT:-"(unknown)"}"
+  echo "  Checking out target commit..."
+  git -C "$OPENCLAW_DIR" reset --hard HEAD 2>/dev/null || true
+  git -C "$OPENCLAW_DIR" fetch origin
+  git -C "$OPENCLAW_DIR" checkout "$OPENCLAW_COMMIT"
+  echo "  ✅ openclaw checked out at $OPENCLAW_VERSION"
+
+  echo "  📦 Installing dependencies..."
+  (cd "$OPENCLAW_DIR" && pnpm install)
+
+  echo "  🔨 Building..."
+  (cd "$OPENCLAW_DIR" && pnpm build)
+
+  echo "  ✅ openclaw engine ready"
+  OPENCLAW_UPDATED=true
+fi
+echo ""
+
+# ─── 5. 重新应用 addons + 同步配置（apply-addons.sh 末尾会调 setup-crew.sh）
+echo "🔄 Applying addons and syncing config..."
+"$PROJECT_ROOT/scripts/apply-addons.sh"
+
+echo ""
+echo "✅ Upgrade complete!"
+if [ "$OFB_UPDATED" = "true" ] || [ "$OPENCLAW_UPDATED" = "true" ]; then
+  echo ""
+  echo "Next steps — restart the gateway to apply changes:"
+  echo "  Production: cd $PROJECT_ROOT && ./scripts/reinstall-daemon.sh"
+  echo "  Dev mode:   cd $PROJECT_ROOT && ./scripts/dev.sh gateway"
+fi

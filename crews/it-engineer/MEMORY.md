@@ -132,16 +132,17 @@ openclaw_for_business/
 ### 升级命令
 ```bash
 cd <OFB_PROJECT_ROOT>
-./scripts/update-upstream.sh
+./scripts/upgrade.sh
 ```
 
-`update-upstream.sh` 会依次：
-1. 恢复上游代码到干净状态（`git reset --hard`）
-2. 拉取上游最新代码（`git pull origin main`）
-3. 安装 / 更新依赖（`pnpm install`）
-4. 重新构建（`pnpm build`）
-5. 重新同步 crew 配置（`setup-crew.sh`）
-6. 重新应用 addons（`apply-addons.sh`）
+`upgrade.sh` 会依次：
+1. 拉取最新 OFB 代码（`git reset --hard origin/main`）
+2. 读取 `openclaw.version`，按锚定 commit 检出 openclaw 引擎
+   - 若已是目标 commit，跳过 install/build
+3. 安装 / 更新依赖（`pnpm install`）并重新构建（`pnpm build`）
+4. 重新应用 addons + 同步 crew 配置（`apply-addons.sh` 内含 `setup-crew.sh`）
+
+> **注意**：`update-upstream.sh` 已废弃，调用会自动重定向至 `upgrade.sh`。
 
 升级完成后通常需要重启服务。
 

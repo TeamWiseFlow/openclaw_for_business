@@ -24,7 +24,7 @@ cd <OFB_PROJECT_ROOT> && ./scripts/setup-crew.sh
 cd <OFB_PROJECT_ROOT> && ./scripts/apply-addons.sh
 
 # 升级 OFB 系统（执行前必须确认系统空闲）
-cd <OFB_PROJECT_ROOT> && ./scripts/update-upstream.sh
+cd <OFB_PROJECT_ROOT> && ./scripts/upgrade.sh
 ```
 
 > ⚠️ **禁止直接运行 `openclaw` 命令**（`openclaw` 不在系统 PATH 中）。
