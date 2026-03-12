@@ -10,8 +10,8 @@ All addon development **must target the exact OpenClaw version pinned by this re
 The version and commit hash are stored in [`openclaw.version`](./openclaw.version) at the repo root:
 
 ```bash
-OPENCLAW_VERSION=2026.3.8
-OPENCLAW_COMMIT=f6243916b51ca4b4131674fa2f6fa9d863314c01
+OPENCLAW_VERSION=2026.3.11
+OPENCLAW_COMMIT=29dc65403faf41dc52944c02a0db9fa4b8457395
 ```
 
 ### Why this matters
@@ -88,8 +88,8 @@ addons/<your-addon-name>/
   "name": "my-addon",
   "version": "1.0.0",
   "description": "Short description of what this addon does",
-  "openclaw_version": "2026.3.8",
-  "openclaw_commit": "f6243916b51ca4b4131674fa2f6fa9d863314c01"
+  "openclaw_version": "2026.3.11",
+  "openclaw_commit": "29dc65403faf41dc52944c02a0db9fa4b8457395"
 }
 ```
 
