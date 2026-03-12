@@ -58,7 +58,7 @@ openclaw_for_business/
 │   ├── dev.sh             # 开发模式启动
 │   ├── setup-crew.sh      # 多 Crew 系统安装（幂等）
 │   ├── apply-addons.sh    # 全局 skills + addon 加载器
-│   ├── update-upstream.sh # 更新上游代码（升级入口）
+│   ├── upgrade.sh         # 升级 OFB（自身代码 + openclaw 引擎 + 配置同步）
 │   ├── reinstall-daemon.sh # 生产模式安装后台服务
 │   └── setup-wsl2.sh      # WSL2 环境配置
 └── docs/                  # 项目文档
@@ -141,8 +141,6 @@ cd <OFB_PROJECT_ROOT>
    - 若已是目标 commit，跳过 install/build
 3. 安装 / 更新依赖（`pnpm install`）并重新构建（`pnpm build`）
 4. 重新应用 addons + 同步 crew 配置（`apply-addons.sh` 内含 `setup-crew.sh`）
-
-> **注意**：`update-upstream.sh` 已废弃，调用会自动重定向至 `upgrade.sh`。
 
 升级完成后通常需要重启服务。
 

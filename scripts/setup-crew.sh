@@ -177,6 +177,12 @@ for agent_id in $BUILTIN_CREWS; do
       echo "  🔄 workspace-$agent_id built-in skills synced"
     fi
 
+    # 配置类文件始终从模板刷新（MEMORY.md / USER.md 是运行时状态，保持不动）
+    for f in AGENTS.md SOUL.md TOOLS.md IDENTITY.md HEARTBEAT.md TASKS.md; do
+      [ -f "$agent_dir/$f" ] && cp "$agent_dir/$f" "$dest/$f"
+    done
+    echo "  🔄 workspace-$agent_id config files synced from template"
+
     # 同步 DENIED/BUILTIN 配置（若模板有）
     if [ -f "$agent_dir/DENIED_SKILLS" ]; then
       cp "$agent_dir/DENIED_SKILLS" "$dest/"
@@ -398,7 +404,7 @@ cd $PROJECT_ROOT && ./scripts/apply-addons.sh
 cd $PROJECT_ROOT && ./scripts/reinstall-daemon.sh
 
 # 升级 OFB 系统（须确认系统空闲）
-cd $PROJECT_ROOT && ./scripts/update-upstream.sh
+cd $PROJECT_ROOT && ./scripts/upgrade.sh
 
 # 直接调用上游 CLI（如需）
 cd $PROJECT_ROOT/openclaw && pnpm openclaw <subcommand>
