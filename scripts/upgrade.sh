@@ -101,7 +101,14 @@ else
   echo "  Current commit: ${CURRENT_COMMIT:-"(unknown)"}"
   echo "  Checking out target commit..."
   git -C "$OPENCLAW_DIR" reset --hard HEAD 2>/dev/null || true
-  git -C "$OPENCLAW_DIR" fetch origin
+  # 对于 shallow clone，需要带 --tags 确保 target commit 的 tree 对象被下载
+  git -C "$OPENCLAW_DIR" fetch origin --tags
+  # 若仍无法读取 tree（blobless/treeless clone），进一步 unshallow
+  if ! git -C "$OPENCLAW_DIR" cat-file -e "${OPENCLAW_COMMIT}^{tree}" 2>/dev/null; then
+    echo "  ⚠️  Shallow clone detected, unshallowing to fetch full objects..."
+    git -C "$OPENCLAW_DIR" fetch --unshallow origin 2>/dev/null || \
+      git -C "$OPENCLAW_DIR" fetch --deepen=200 origin
+  fi
   git -C "$OPENCLAW_DIR" checkout "$OPENCLAW_COMMIT"
   echo "  ✅ openclaw checked out at $OPENCLAW_VERSION"
 
