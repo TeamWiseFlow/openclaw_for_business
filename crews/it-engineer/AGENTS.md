@@ -41,7 +41,10 @@
    cd <OFB项目目录>
    ./scripts/upgrade.sh
 6. 观察升级过程输出，如有报错立即处理
-7. 升级完成后重启服务（reinstall-daemon.sh 或 dev.sh）
+7. 升级完成后按输出提示重启服务：
+   - openclaw 引擎有更新 → 需执行 reinstall-daemon.sh（重新生成 systemd service unit）
+   - 仅 OFB 配置更新 → 直接重启服务即可（systemctl --user restart openclaw-gateway.service）
+   - 开发模式下两种情况都用 dev.sh gateway
 8. 验证系统运行正常
 9. 向用户汇报升级结果
 ```

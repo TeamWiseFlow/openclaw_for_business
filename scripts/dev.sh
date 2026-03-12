@@ -24,15 +24,8 @@ fi
 # Apply addons (overrides + patches + skills + agents)
 "$PROJECT_ROOT/scripts/apply-addons.sh"
 
-# 检测 WSL2 环境并获取访问地址
-if grep -qi microsoft /proc/version 2>/dev/null; then
-  WSL_HOST=$(ip route show | grep -i default | awk '{ print $3}')
-  ACCESS_URL="http://${WSL_HOST}:18789"
-  ENV_NOTE="(WSL2)"
-else
-  ACCESS_URL="http://127.0.0.1:18789"
-  ENV_NOTE=""
-fi
+ACCESS_URL="http://127.0.0.1:18789"
+ENV_NOTE=""
 
 echo "🚀 Starting OpenClaw for Business... $ENV_NOTE"
 echo "   Data: ~/.openclaw"
@@ -42,7 +35,7 @@ echo ""
 
 cd "$PROJECT_ROOT/openclaw"
 
-# 根据参数决定运行���式
+# 根据参数决定运行模式
 case "${1:-gateway}" in
   gateway)
     shift  # 移除 'gateway' 参数

@@ -289,15 +289,8 @@ if [ "$(uname -s)" = "Linux" ]; then
   install_systemd_env_dropin "$SYSTEMD_ENV_FILE"
 fi
 
-# 检测 WSL2 环境并显示正确的访问地址
-if grep -qi microsoft /proc/version 2>/dev/null; then
-  WSL_HOST=$(ip route show | grep -i default | awk '{ print $3}')
-  ACCESS_URL="http://${WSL_HOST}:18789"
-  ENV_NOTE="(从 Windows 浏览器访问)"
-else
-  ACCESS_URL="http://127.0.0.1:18789"
-  ENV_NOTE=""
-fi
+ACCESS_URL="http://127.0.0.1:18789"
+ENV_NOTE=""
 
 echo ""
 echo "✅ Daemon reinstalled"

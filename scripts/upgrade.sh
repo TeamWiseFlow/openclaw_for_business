@@ -37,7 +37,7 @@ if [ ! -f "$PROJECT_ROOT/scripts/apply-addons.sh" ] || [ ! -d "$OPENCLAW_DIR" ];
   exit 1
 fi
 
-# ─── 2. 配置 git remote ─��────────────────────────────────────────
+# ─── 2. 配置 git remote ────────────────────────────────────────
 if [ ! -d "$PROJECT_ROOT/.git" ]; then
   echo "📦 Initializing git repository..."
   git init
@@ -122,9 +122,12 @@ echo "🔄 Applying addons and syncing config..."
 
 echo ""
 echo "✅ Upgrade complete!"
-if [ "$OFB_UPDATED" = "true" ] || [ "$OPENCLAW_UPDATED" = "true" ]; then
-  echo ""
-  echo "Next steps — restart the gateway to apply changes:"
+if [ "$OPENCLAW_UPDATED" = "true" ]; then
+  echo "Next steps — openclaw engine was updated; reinstall daemon to refresh service unit:"
   echo "  Production: cd $PROJECT_ROOT && ./scripts/reinstall-daemon.sh"
+  echo "  Dev mode:   cd $PROJECT_ROOT && ./scripts/dev.sh gateway"
+else
+  echo "Next steps — only OFB config updated; a simple service restart is enough:"
+  echo "  Production: systemctl --user restart openclaw-gateway.service"
   echo "  Dev mode:   cd $PROJECT_ROOT && ./scripts/dev.sh gateway"
 fi
