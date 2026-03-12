@@ -35,6 +35,21 @@ OPENCLAW_HOME="$HOME/.openclaw"
 CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
 HRBP_ADD_AGENT_SCRIPT="$PROJECT_ROOT/crews/hrbp/skills/hrbp-recruit/scripts/add-agent.sh"
 GLOBAL_SHARED_SKILLS_FILE="$OPENCLAW_HOME/GLOBAL_SHARED_SKILLS"
+FORCE=false
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --force)
+      FORCE=true
+      shift
+      ;;
+    *)
+      echo "❌ Unknown option: $1"
+      echo "Usage: $0 [--force]"
+      exit 1
+      ;;
+  esac
+done
 
 GLOBAL_SHARED_SKILLS_RAW=""
 append_global_shared_skill() {
@@ -68,6 +83,16 @@ if [ -f "$CONFIG_PATH" ] && [ -f "$PROJECT_ROOT/config-templates/openclaw.json" 
       if (!running.skills.entries) running.skills.entries = {};
       for (const [name, entry] of Object.entries(template.skills.entries)) {
         running.skills.entries[name] = entry;
+        changed = true;
+      }
+    }
+
+    // 同步 tools.exec 配置（避免 WSL/Linux 下 sandbox 默认导致 exec 失败）
+    if (template.tools?.exec) {
+      if (!running.tools) running.tools = {};
+      if (!running.tools.exec) running.tools.exec = {};
+      for (const [key, value] of Object.entries(template.tools.exec)) {
+        running.tools.exec[key] = value;
         changed = true;
       }
     }
@@ -311,7 +336,11 @@ printf '%s\n' "$GLOBAL_SHARED_SKILLS_RAW" \
 GLOBAL_SHARED_COUNT="$(wc -l < "$GLOBAL_SHARED_SKILLS_FILE" | tr -d ' ')"
 echo "🧾 Global shared skills catalog updated ($GLOBAL_SHARED_COUNT)"
 
-# ─── 重新同步 agents.list[].skills（纳入最新全局 skills）──────────
+# ─── 重新同步 agents.list[].skills（纳入最��全局 skills）──────────
 if [ -f "$CONFIG_PATH" ] && [ -x "$PROJECT_ROOT/scripts/setup-crew.sh" ]; then
-  "$PROJECT_ROOT/scripts/setup-crew.sh"
+  if [ "$FORCE" = "true" ]; then
+    "$PROJECT_ROOT/scripts/setup-crew.sh" --force
+  else
+    "$PROJECT_ROOT/scripts/setup-crew.sh"
+  fi
 fi

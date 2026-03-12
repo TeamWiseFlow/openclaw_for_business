@@ -22,6 +22,22 @@ OFB_REPO="https://github.com/TeamWiseFlow/openclaw_for_business.git"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OPENCLAW_DIR="$PROJECT_ROOT/openclaw"
 VERSION_FILE="$PROJECT_ROOT/openclaw.version"
+FORCE=false
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --force)
+      FORCE=true
+      shift
+      ;;
+    *)
+      echo "❌ Unknown option: $1"
+      echo "Usage: $0 [--force]"
+      echo "  --force  Overwrite existing workspace files (including MEMORY.md)"
+      exit 1
+      ;;
+  esac
+done
 
 cd "$PROJECT_ROOT"
 
@@ -125,7 +141,11 @@ echo ""
 
 # ─── 5. 重新应用 addons + 同步配置（apply-addons.sh 末尾会调 setup-crew.sh）
 echo "🔄 Applying addons and syncing config..."
-"$PROJECT_ROOT/scripts/apply-addons.sh"
+if [ "$FORCE" = "true" ]; then
+  "$PROJECT_ROOT/scripts/apply-addons.sh" --force
+else
+  "$PROJECT_ROOT/scripts/apply-addons.sh"
+fi
 
 echo ""
 echo "✅ Upgrade complete!"
