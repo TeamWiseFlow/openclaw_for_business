@@ -322,6 +322,20 @@ if [ "$(uname -s)" = "Linux" ]; then
     chmod 600 "$SYSTEMD_ENV_FILE"
     echo "  ✅ Node.js path written to daemon.env: $_node_dir"
   fi
+
+  # WSL2 环境：幂等注入 GUI 显示相关环境变量（WSLg 需要）
+  if grep -qi microsoft /proc/version 2>/dev/null; then
+    mkdir -p "$(dirname "$SYSTEMD_ENV_FILE")"
+    {
+      [ -f "$SYSTEMD_ENV_FILE" ] && grep -vE "^(DISPLAY|WAYLAND_DISPLAY|XDG_RUNTIME_DIR)=" "$SYSTEMD_ENV_FILE" || true
+      printf 'DISPLAY=:0\n'
+      printf 'WAYLAND_DISPLAY=wayland-0\n'
+      printf 'XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir\n'
+    } > "${SYSTEMD_ENV_FILE}.new"
+    mv "${SYSTEMD_ENV_FILE}.new" "$SYSTEMD_ENV_FILE"
+    chmod 600 "$SYSTEMD_ENV_FILE"
+    echo "  ✅ WSL2 display env written to daemon.env (DISPLAY, WAYLAND_DISPLAY, XDG_RUNTIME_DIR)"
+  fi
 fi
 
 cd "$PROJECT_ROOT/openclaw"
