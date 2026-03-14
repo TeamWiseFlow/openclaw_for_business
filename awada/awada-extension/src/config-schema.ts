@@ -24,6 +24,12 @@ export const AwadaConfigSchema = z
     blockTimeMs: z.number().int().positive().optional(),
     /** Batch size for XREADGROUP. Default: 10 */
     batchSize: z.number().int().positive().optional(),
+    /**
+     * Max characters per outbound message. When set, long replies are automatically
+     * split into multiple messages each no longer than this value.
+     * Useful for platforms like WeChat that enforce per-message length limits.
+     */
+    perMsgMaxLen: z.number().int().positive().optional(),
   })
   .strict();
 

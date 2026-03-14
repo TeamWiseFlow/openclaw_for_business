@@ -3,6 +3,39 @@ import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk/feishu";
 import { resolveAwadaAccount } from "./accounts.js";
 import { getAwadaRuntime } from "./runtime.js";
 import { decodeAwadaTo, sendTextToAwada } from "./send.js";
+import type { AwadaConfig } from "./types.js";
+
+/**
+ * Split text by perMsgMaxLen if configured, then send each chunk.
+ * Returns the stream ID of the last sent chunk (for delivery tracking).
+ */
+async function sendChunked(params: {
+  cfg: Parameters<ChannelOutboundAdapter["sendText"]>[0]["cfg"];
+  redisUrl: string;
+  target: ReturnType<typeof decodeAwadaTo>;
+  text: string;
+}): Promise<string> {
+  const { cfg, redisUrl, target } = params;
+  const awadaCfg = cfg.channels?.awada as AwadaConfig | undefined;
+  const perMsgMaxLen = awadaCfg?.perMsgMaxLen;
+  const chunks =
+    perMsgMaxLen && params.text.length > perMsgMaxLen
+      ? getAwadaRuntime().channel.text.chunkMarkdownText(params.text, perMsgMaxLen)
+      : [params.text];
+
+  let lastId = "";
+  for (const chunk of chunks) {
+    lastId = await sendTextToAwada({
+      redisUrl,
+      target: target!,
+      text: chunk,
+      replyToEventId: randomUUID(),
+      correlationId: randomUUID(),
+      traceId: randomUUID(),
+    });
+  }
+  return lastId;
+}
 
 export const awadaOutbound: ChannelOutboundAdapter = {
   deliveryMode: "direct",
@@ -18,13 +51,11 @@ export const awadaOutbound: ChannelOutboundAdapter = {
     if (!account.redisUrl) {
       throw new Error("[awada] redisUrl not configured");
     }
-    const streamId = await sendTextToAwada({
+    const streamId = await sendChunked({
+      cfg,
       redisUrl: account.redisUrl,
       target,
       text,
-      replyToEventId: randomUUID(),
-      correlationId: randomUUID(),
-      traceId: randomUUID(),
     });
     return { channel: "awada", messageId: streamId };
   },
@@ -39,13 +70,11 @@ export const awadaOutbound: ChannelOutboundAdapter = {
       throw new Error("[awada] redisUrl not configured");
     }
     const body = text?.trim() ?? "[media]";
-    const streamId = await sendTextToAwada({
+    const streamId = await sendChunked({
+      cfg,
       redisUrl: account.redisUrl,
       target,
       text: body,
-      replyToEventId: randomUUID(),
-      correlationId: randomUUID(),
-      traceId: randomUUID(),
     });
     return { channel: "awada", messageId: streamId };
   },

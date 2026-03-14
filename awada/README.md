@@ -193,6 +193,7 @@ pnpm install --prod
 | `maxRetries` | number | `5` | 消息处理失败最大重试次数 |
 | `blockTimeMs` | number | `5000` | Redis XREADGROUP 阻塞超时（毫秒） |
 | `batchSize` | number | `10` | 每批拉取消息数量 |
+| `perMsgMaxLen` | number | — | 单条消息最大字符数。设置后，超长回复会自动拆分为多条发送，每条不超过该值。适用于微信等对单消息长度有限制的平台。 |
 
 > **设计约定：** awada-server 的 Bot 可监听多个 lane（`BOT_N_LANES=user,admin`），但 awada-extension 每个实例只绑定一个 lane，通过 lane 实现流量隔离与路由。`platform` 值须与 awada-server 端对应 Bot 的 `BOT_N_PLATFORM` 保持一致。
 
@@ -220,6 +221,29 @@ redis://USERNAME:PASSWORD@HOST:PORT/DB   # 有用户名和密码
   }
 }
 ```
+
+**客服场景推荐配置（含消息长度限制 + 用户会话隔离）：**
+```json
+{
+  "channels": {
+    "awada": {
+      "enabled": true,
+      "redisUrl": "redis://:MyRedisPass@121.4.44.143:7601/0",
+      "lane": "user",
+      "platform": "worktool:mybot",
+      "dmPolicy": "open",
+      "perMsgMaxLen": 500
+    }
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
+  }
+}
+```
+
+> **说明：**
+> - `perMsgMaxLen: 500`：将超长回复自动拆分，每条不超过 500 字符。微信单消息有长度限制，建议设置此项。拆分在发送层进行，不影响 LLM 生成过程。
+> - `session.dmScope: "per-channel-peer"`：每个微信用户（`user_id_external`）独享独立 session，用户 A 的对话上下文完全隔离于用户 B。`session` 是顶层配置，与 `channels` 平级。
 
 ### 通过向导配置
 

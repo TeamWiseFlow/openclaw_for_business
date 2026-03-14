@@ -2,6 +2,7 @@ import type { ClawdbotConfig, RuntimeEnv } from "openclaw/plugin-sdk/feishu";
 import { getAwadaRuntime } from "./runtime.js";
 import type { OutboundTarget } from "./redis-types.js";
 import { sendTextToAwada } from "./send.js";
+import type { AwadaConfig } from "./types.js";
 
 export type CreateAwadaReplyDispatcherParams = {
   cfg: ClawdbotConfig;
@@ -53,26 +54,35 @@ export function createAwadaReplyDispatcher(params: CreateAwadaReplyDispatcherPar
     fallbackLimit: 2000,
   });
 
+  const awadaCfg = cfg.channels?.awada as AwadaConfig | undefined;
+  const effectiveChunkLimit = awadaCfg?.perMsgMaxLen ?? textChunkLimit;
+
   const queueSend = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    const p = sendTextToAwada({
-      redisUrl,
-      target,
-      text: trimmed,
-      replyToEventId: inboundEventId,
-      correlationId,
-      traceId,
-    })
-      .then(() => {
-        log(
-          `awada[${accountId ?? "default"}]: reply sent to ${formatAwadaReplyRecipient(target)}`,
-        );
+    const chunks =
+      trimmed.length > effectiveChunkLimit
+        ? core.channel.text.chunkMarkdownText(trimmed, effectiveChunkLimit)
+        : [trimmed];
+    for (const chunk of chunks) {
+      const p = sendTextToAwada({
+        redisUrl,
+        target,
+        text: chunk,
+        replyToEventId: inboundEventId,
+        correlationId,
+        traceId,
       })
-      .catch((err) => {
-        error(`awada[${accountId ?? "default"}]: send failed: ${String(err)}`);
-      });
-    pendingSends.push(p);
+        .then(() => {
+          log(
+            `awada[${accountId ?? "default"}]: reply sent to ${formatAwadaReplyRecipient(target)}`,
+          );
+        })
+        .catch((err) => {
+          error(`awada[${accountId ?? "default"}]: send failed: ${String(err)}`);
+        });
+      pendingSends.push(p);
+    }
   };
 
   const dispatcher = {

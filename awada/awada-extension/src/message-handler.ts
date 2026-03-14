@@ -18,6 +18,15 @@ function extractTextFromPayload(payload: InboundEvent["payload"]): string {
 }
 
 /**
+ * Sanitize a peer ID for use in session keys (stored in DB).
+ * Replaces characters outside [A-Za-z0-9_\-.@+:] with underscores.
+ * Does NOT modify the original user_id_external — only call this for peer/session routing.
+ */
+function sanitizePeerId(id: string): string {
+  return id.replace(/[^\w\-.@+:]/g, "_");
+}
+
+/**
  * Handle a single inbound awada event, dispatching to the OpenClaw agent.
  */
 export async function handleAwadaMessage(params: {
@@ -67,7 +76,7 @@ export async function handleAwadaMessage(params: {
     cfg,
     channel: "awada",
     accountId,
-    peer: { kind: "direct", id: meta.user_id_external },
+    peer: { kind: "direct", id: sanitizePeerId(meta.user_id_external) },
   });
 
   // Build agent envelope

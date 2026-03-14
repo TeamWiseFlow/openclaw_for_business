@@ -60,6 +60,7 @@ export const awadaPlugin: ChannelPlugin<ResolvedAwadaAccount> = {
         maxRetries: { type: "integer", minimum: 1 },
         blockTimeMs: { type: "integer", minimum: 1 },
         batchSize: { type: "integer", minimum: 1 },
+        perMsgMaxLen: { type: "integer", minimum: 1 },
       },
     },
   },
