@@ -49,7 +49,7 @@ mcporter call alipay.create-mobile-alipay-payment \
 
 ### 向用户发送支付信息
 - 工具返回支付链接（Markdown格式），直接发送给用户
-- ��时告知：金额、商品名称、支付方式
+- 同时告知：金额、商品名称、支付方式
 - 提示用户支付完成后回复确认，以便继续服务
 
 示例话术：

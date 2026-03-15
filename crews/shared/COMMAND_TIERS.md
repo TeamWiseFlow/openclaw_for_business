@@ -19,10 +19,10 @@
 
 | Tier | 名称 | 执行策略 | 适用 Crew |
 |------|------|----------|-----------|
-| T0 | read-only | `security: deny` — 禁止所有 shell 命令 | customer-service, content-writer, market-analyst |
-| T1 | basic-shell | `security: allowlist` — 仅允许只读命令 | main, operations |
-| T2 | dev-tools | `security: allowlist` — 开发工具链 + 只读命令 | developer, hrbp |
-| T3 | admin | `security: full` — 完整系统操作 | it-engineer |
+| T0 | read-only | `security: deny` — 默认禁止所有 shell 命令 | external crews（默认） |
+| T1 | basic-shell | `security: allowlist` — 仅允许只读命令 | low-risk internal crews |
+| T2 | dev-tools | `security: allowlist` — 开发工具链 + 只读命令 | developer, main |
+| T3 | admin | `security: full` — 完整系统操作 | it-engineer, hrbp |
 
 ---
 
@@ -32,6 +32,8 @@
 
 - 所有文件读取通过 Agent 内置工具（非 shell）完成
 - 任何 exec 调用都会被 OpenClaw 自动拒绝
+
+例外：若实例 workspace 显式提供 `ALLOWED_COMMANDS` 且包含 `+<command>`，会按最小权限升级为 `allowlist`（仅放行声明命令）。
 
 ---
 

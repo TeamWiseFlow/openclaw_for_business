@@ -33,6 +33,25 @@ resolve_command_tier() {
   esac
 }
 
+# ── 从 SOUL.md 解析 crew-type（internal/external）──────
+resolve_crew_type() {
+  local soul_file="$1"
+  if [ ! -f "$soul_file" ]; then
+    echo "external"
+    return
+  fi
+  local crew_type
+  crew_type="$(grep -i 'crew-type:' "$soul_file" 2>/dev/null \
+    | head -1 \
+    | sed 's/.*crew-type:[[:space:]]*//' \
+    | tr -d '[:space:]' \
+    | tr '[:upper:]' '[:lower:]')"
+  case "$crew_type" in
+    internal|external) echo "$crew_type" ;;
+    *) echo "external" ;;
+  esac
+}
+
 # ── 从 ALLOWED_COMMANDS 解析 +/- 微调 ────────────────
 # 输出格式: "added1 added2|removed1 removed2"
 parse_allowed_commands() {
@@ -63,21 +82,23 @@ resolve_tier_commands() {
   local tier="$1"
   local allowed_commands_file="$2"
 
-  local base_commands=""
-  case "$tier" in
-    T0) echo ""; return ;;
-    T1) base_commands="$TIER_T1_COMMANDS" ;;
-    T2) base_commands="$TIER_T1_COMMANDS $TIER_T2_EXTRA" ;;
-    T3) echo "__FULL__"; return ;;
-  esac
-
   # 解析微调
   local adjustments
   adjustments="$(parse_allowed_commands "$allowed_commands_file")"
   local added="${adjustments%%|*}"
   local removed="${adjustments##*|}"
 
-  local all_commands="$base_commands $added"
+  local base_commands=""
+  case "$tier" in
+    # T0 默认 deny；若显式声明 +command，则升级为 allowlist（仍是最小权限）
+    T0) base_commands="$added" ;;
+    T1) base_commands="$TIER_T1_COMMANDS $added" ;;
+    T2) base_commands="$TIER_T1_COMMANDS $TIER_T2_EXTRA $added" ;;
+    T3) echo "__FULL__"; return ;;
+    *) base_commands="$added" ;;
+  esac
+
+  local all_commands="$base_commands"
 
   # 过滤被移除的命令
   local final=""
@@ -245,23 +266,46 @@ fs.writeFileSync(filePath, JSON.stringify(result, null, 2) + "\n", { mode: 0o600
 }
 
 # ── 高层接口：为一组 agents 计算并写入 exec 配置 ─────
-# 参数: config_path exec_approvals_path crews_dir project_root builtin_crews
-# 读取每个内置 crew 的 tier，生成 tools.exec + exec-approvals
+# 参数: config_path exec_approvals_path crews_dir project_root
+# 读取每个已注册 crew 的 tier，生成 tools.exec + exec-approvals
 apply_exec_tiers() {
   local config_path="$1"
   local exec_approvals_path="$2"
   local crews_dir="$3"
   local project_root="$4"
-  local builtin_crews="$5"
 
-  # 收集所有内置 crew 的 exec 配置
+  # 收集所有已注册 crew 的 exec 配置
   local agent_configs="{}"
   local tools_exec_patches="{}"
 
-  for agent_id in $builtin_crews; do
-    local workspace_dir="$HOME/.openclaw/workspace-$agent_id"
+  local agent_entries=""
+  agent_entries="$(CONFIG_PATH="$config_path" node -e '
+const fs = require("fs");
+const home = process.env.HOME || "";
+const c = JSON.parse(fs.readFileSync(process.env.CONFIG_PATH, "utf8"));
+for (const a of (c.agents?.list || [])) {
+  if (!a || typeof a.id !== "string" || !a.id.trim()) continue;
+  const id = a.id.trim();
+  const wsRaw = typeof a.workspace === "string" && a.workspace.trim()
+    ? a.workspace.trim()
+    : ("~/.openclaw/workspace-" + id);
+  const ws = wsRaw.replace(/^~(?=\/|$)/, home);
+  console.log(id + "\t" + ws);
+}
+')"
+
+  while IFS=$'\t' read -r agent_id workspace_dir; do
+    [ -n "$agent_id" ] || continue
+    [ -n "$workspace_dir" ] || workspace_dir="$HOME/.openclaw/workspace-$agent_id"
     local soul_file="$workspace_dir/SOUL.md"
-    local allowed_cmds_file="$crews_dir/$agent_id/ALLOWED_COMMANDS"
+    local crew_type
+    crew_type="$(resolve_crew_type "$soul_file")"
+
+    # 优先读取实例 workspace 的 ALLOWED_COMMANDS；缺失时回退模板目录
+    local allowed_cmds_file="$workspace_dir/ALLOWED_COMMANDS"
+    if [ ! -f "$allowed_cmds_file" ] && [ -f "$crews_dir/$agent_id/ALLOWED_COMMANDS" ]; then
+      allowed_cmds_file="$crews_dir/$agent_id/ALLOWED_COMMANDS"
+    fi
 
     # 解析 tier
     local tier
@@ -275,14 +319,30 @@ apply_exec_tiers() {
     local allowlist_json
     allowlist_json="$(build_exec_allowlist_json "$commands")"
 
+    local t0_has_allowlist="false"
+    if [ "$tier" = "T0" ] && [ -n "$(printf '%s' "$commands" | tr -d '[:space:]')" ]; then
+      t0_has_allowlist="true"
+    fi
+
     # 生成 tools.exec JSON
     local tools_exec_json
-    tools_exec_json="$(tier_to_tools_exec_json "$tier")"
+    if [ "$t0_has_allowlist" = "true" ]; then
+      tools_exec_json='{"host":"gateway","security":"allowlist","ask":"off"}'
+    else
+      tools_exec_json="$(tier_to_tools_exec_json "$tier")"
+    fi
 
     # 生成 exec-approvals agent 配置
     local agent_security agent_ask
     case "$tier" in
-      T0) agent_security="deny"; agent_ask="off" ;;
+      T0)
+        if [ "$t0_has_allowlist" = "true" ]; then
+          agent_security="allowlist"
+        else
+          agent_security="deny"
+        fi
+        agent_ask="off"
+        ;;
       T1|T2) agent_security="allowlist"; agent_ask="off" ;;
       T3) agent_security="full"; agent_ask="off" ;;
       *) agent_security="deny"; agent_ask="off" ;;
@@ -297,7 +357,7 @@ apply_exec_tiers() {
       cmd_count="$(echo $commands | wc -w | tr -d ' ')"
     fi
 
-    echo "  🔒 $agent_id → $tier (security=$agent_security, commands=$cmd_count)"
+    echo "  🔒 $agent_id [$crew_type] → $tier (security=$agent_security, commands=$cmd_count)"
 
     # 累加到 JSON 对象
     agent_configs="$(PREV="$agent_configs" AID="$agent_id" SEC="$agent_security" ASK="$agent_ask" AL="$allowlist_json" \
@@ -318,7 +378,7 @@ const prev = JSON.parse(process.env.PREV);
 prev[process.env.AID] = JSON.parse(process.env.TEJ);
 console.log(JSON.stringify(prev));
 ')"
-  done
+  done <<< "$agent_entries"
 
   # 写入 exec-approvals.json
   generate_exec_approvals "$exec_approvals_path" "$agent_configs"

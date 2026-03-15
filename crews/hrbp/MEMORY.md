@@ -37,12 +37,6 @@
 - 对外 crew 模板：`~/.openclaw/hrbp_templates/`
 - 归档目录：`~/.openclaw/archived/`
 
-## 官方外部 Crew 模板（OFB Official）
-- `customer-service` — 客户服务，bind-only，T0，含 feedback 机制
-
-## 用户自建模板
-（创建后记录于此）
-
 ## 保护名单（内部 Crew，不受 HRBP 管理）
 以下为内置对内 Crew，不可删除、不可多实例：
 - `main` — 路由调度器

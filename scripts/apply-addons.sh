@@ -97,6 +97,15 @@ if [ -f "$CONFIG_PATH" ] && [ -f "$PROJECT_ROOT/config-templates/openclaw.json" 
       }
     }
 
+    // 同步 session.dmScope 默认值（外部 crew 需要 per-channel-peer 隔离）
+    if (template.session?.dmScope) {
+      if (!running.session) running.session = {};
+      if (running.session.dmScope !== template.session.dmScope) {
+        running.session.dmScope = template.session.dmScope;
+        changed = true;
+      }
+    }
+
     // 规范 Feishu 多账号配置：将顶层 single-account 字段下沉到 accounts.*
     // 避免启动时触发 Doctor 迁移提示：
     // \"Moved channels.feishu single-account top-level values into channels.feishu.accounts.default.\"
@@ -250,31 +259,31 @@ for addon_dir in "$ADDONS_DIR"/*/; do
 
       template_id="$(basename "$template_ws")"
 
-      # 读取 addon.json 中的 crew-type 声明
-      # addon.json 中可声明 "crew-type": "internal" 或 "crew-type": "external"（默认 external）
+      # 读取 addon.json 中的 crew-type 声明（全局或 per-template）
       addon_crew_type="$(node -e "
         try {
           const a = JSON.parse(require('fs').readFileSync('${addon_dir}addon.json','utf8'));
-          // 支持全局 crew-type 或每模板 crew-type（crew-types[template-id]）
           const perTemplate = a['crew-types'] && a['crew-types']['${template_id}'];
           const global = a['crew-type'];
-          const t = perTemplate || global || 'external';
-          console.log(['internal','external'].includes(t) ? t : 'external');
-        } catch(e) { console.log('external'); }
-      " 2>/dev/null || echo "external")"
+          const t = perTemplate || global || '';
+          console.log(['internal','external'].includes(t) ? t : '');
+        } catch(e) { console.log(''); }
+      " 2>/dev/null || echo "")"
 
-      # 从 SOUL.md 中验证 crew-type 一致性（SOUL.md 中的声明优先）
+      # SOUL.md 中的 crew-type 必须显式声明
       soul_crew_type="$(grep -m1 '^crew-type:' "${template_ws}SOUL.md" 2>/dev/null \
-        | sed 's/^crew-type:[[:space:]]*//' | tr -d '[:space:]')"
-      if [ -n "$soul_crew_type" ] && [ "$soul_crew_type" != "$addon_crew_type" ]; then
-        echo "    ⚠️  crew-type mismatch for $template_id: addon.json says '$addon_crew_type', SOUL.md says '$soul_crew_type'. Using SOUL.md value."
-        addon_crew_type="$soul_crew_type"
-      fi
-      if [ "$addon_crew_type" != "internal" ] && [ "$addon_crew_type" != "external" ]; then
-        echo "    ⚠️  Unknown crew-type '$addon_crew_type' for $template_id, defaulting to 'external'"
-        addon_crew_type="external"
+        | sed 's/^crew-type:[[:space:]]*//' | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+      if [ "$soul_crew_type" != "internal" ] && [ "$soul_crew_type" != "external" ]; then
+        echo "    ❌ template $template_id missing valid crew-type declaration in SOUL.md (expected internal|external)"
+        exit 1
       fi
 
+      if [ -n "$addon_crew_type" ] && [ "$addon_crew_type" != "$soul_crew_type" ]; then
+        echo "    ❌ crew-type mismatch for $template_id: addon.json says '$addon_crew_type', SOUL.md says '$soul_crew_type'"
+        exit 1
+      fi
+
+      addon_crew_type="$soul_crew_type"
       echo "    → $template_id (crew-type: $addon_crew_type)"
 
       # 安装模板到 crews/（代码仓中，供 HRBP/Main Agent 使用）
@@ -318,6 +327,12 @@ for addon_dir in "$ADDONS_DIR"/*/; do
         else
           mkdir -p "$dest"
           cp "${template_ws}"*.md "$dest/"
+          if [ -f "${template_ws}ALLOWED_COMMANDS" ]; then
+            cp "${template_ws}ALLOWED_COMMANDS" "$dest/"
+          fi
+          if [ -f "${template_ws}BUILTIN_SKILLS" ]; then
+            cp "${template_ws}BUILTIN_SKILLS" "$dest/"
+          fi
           if [ -f "${template_ws}DENIED_SKILLS" ]; then
             cp "${template_ws}DENIED_SKILLS" "$dest/"
           fi

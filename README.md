@@ -7,7 +7,7 @@
 ———— PENG Bo（rwkv.com rwkv.cn 创始人）https://www.zhihu.com/people/bopengbopeng
 ```
 
-小龙虾很强，能够帮你收发邮件、写报告……但是讲真，这真是你需要的吗？或者说这是你可能付费的吗？
+openclaw很强，能够帮你收发邮件、写报告……但是讲真，这真是你需要的吗？或者说这是你可能付费的吗？
 
 它既然都能做这么多事情了，为什么不能用它来帮我们"搞钱"？
 
@@ -19,10 +19,71 @@
 
 相较于原版 [OpenClaw](https://github.com/openclaw/openclaw)，我们提供如下增强：
 
+### 多 crew 机制 
+
+说实话，市面上有很多基于 openclaw 的二开项目都支持多 crew（Agent），甚至还支持让这些 crew（Agent） 自主协同，或者带个办公室界面，你能看到他们在一起“过家家”……
+
+我认为这些都太华而不实了! 如果不能搞钱，一个 Agent Team 跟一个 chatbot 一样，只是玩具而已！
+
+实际上你只需要两类 Agent，一类是对内支撑系统正常运转的（我们称之为 内部 crew），一类是能够对外服务，替你挣钱的（我们称之为外部 crew）。
+
+OFB 项目设置了一套简洁明了的机制：
+
+- 对内 crew 默认只有三个（这三个是全局内置性质）：
+  - 一个是 Main Agent，负责管理所有对内 crew 的生命周期，你也可以把它当成唯一对话入口，通过它喊其他 Crew 干活；
+  - 一个是 IT Engineer，负责帮你搞定 openclaw 繁琐的配置，日常运维（升级、定时心跳检查状态）等，**对，你没看错，只要你完成第一次部署，后面它就可以帮你去做系统配置和运维**
+  - 一个是 HRBP，负责帮你招募、管理对外服务 crew，还能帮你周期性质的扫描对外服务 crew 的 feedback，不断升级他们……
+
+  以上三个内置 crew 我们都已经提供了现成的最佳配置（角色定义文件、SKills、权限等）
+
+- 对外 crew，我们会不断推出官方模板，并且后面会引入 marketplace（addon 市场）机制，要启用哪个，你直接让你的 hrbp 去操作，当然你也可以让它帮你创建
+  - 目前官方内置了一个 customer service 的对外 crew 模板
+
+### 精简 + 增益内置skill
+
+原版 openclaw 的 Skill 机制过于臃肿，且不符合国内实情，OFB 做了如下优化：
+
+OFB 不再采用“空 `agents.list[].skills` = 继承全量内置技能”的方式，而是**始终写入每个 Agent 的 skills allowlist**。
+
+- 全局基线技能（默认所有对内 crew 都会继承）：
+  - 上游内置：`1password`、`healthcheck`、`model-usage`、`nano-pdf`、`skill-creator`、`ordercli`、`session-logs`、`tmux`、`weather`、`xurl`、`video-frames`
+  - OFB 额外新增：`self-improving`
+- `it-engineer` 默认追加：`github`、`gh-issues`、`coding-agent`。
+- 对外 crew 技能全部在模板中采用声明机制。我们为什么要让一个对外搞钱的 crew 具有查天气的技能呢？如果它对外提供的服务跟天气毫无关系？
+
+记住，本项目的唯一理念：一切为了搞钱！
+
+### 安全
+
+我们采用三重命令执行机制，**权限由 `exec-approvals.json` + `tools.exec` 自动强制执行**，不单单是角色定义中告知。
+
+#### 层级概览
+
+| Tier | 名称 | 执行策略 | 适用 Crew |
+|------|------|----------|-----------|
+| T0 | read-only | `security: deny` — 默认禁止所有 shell 命令 | external crews（默认） |
+| T1 | basic-shell | `security: allowlist` — 仅允许只读命令 | low-risk internal crews |
+| T2 | dev-tools | `security: allowlist` — 开发工具链 + 只读命令 | developer, main |
+| T3 | admin | `security: full` — 完整系统操作 | it-engineer, hrbp |
+
+### 【todo】为了搞钱目的新增的基础能力
+
+- 微信客服能力
+- 支付宝/微信支付 打通能力
+- 有可能需要第三个内置全局 crew：财务……以财务数据指导整个系统自动进化，目标只有一个： **收入 ＞ token 消耗 + 固定成本（电脑、宽带、电费……）**
+
+这一趴我们计划三月内完成并开源。
+
+### 易用性脚本
+
 - **配置模板** — 预设国内可用的模型、渠道、技能等配置
-- **工具脚本** — 一键启动、一键部署、一键更新
-- **多 crew 机制** — 采用 `Template → Instance` 模型，你拥有的不再是一个“私人助理”，而是一个“团队”。系统内置三个全局 Crew：`main`（路由调度）、`hrbp`（生命周期管理）、`it-engineer`（系统运维）。你可以通过 HRBP 按模板持续招聘/调整/停用更多业务 Crew（如财务、自媒体运营、情报官等）
-- **Addon 机制** — 通过标准化的 addon 加载器，按需安装第三方能力增强包，可以通过 marketplace 安装社区开源的 Skill、Crew 等
+- **工具脚本** — 一键启动、一键部署、一键更新…… 
+
+搞钱的路上不要那么烦，能够一键解决的争取都提供
+
+## 我们不做什么
+
+直接改上游（openclaw）代码，一切本质上都是脚本实现的最适合搞钱的配置 + patch。
 
 ### 🌇 Addon 生态（marketplace）
 
@@ -228,67 +289,6 @@ cd openclaw && pnpm build && cd ..
 ./scripts/setup-crew.sh --force       # 覆盖已有 workspace
 ./scripts/setup-crew.sh --denied-skills hrbp:slack,github
 ```
-
-## 原版 openclaw 的 Skill 机制过于臃肿，且不符合国内实情，OFB 做了如下优化：
-
-OFB 不再采用“空 `agents.list[].skills` = 继承全量内置技能”的方式，而是**始终写入每个 Agent 的 skills allowlist**。
-
-- 全局基线技能（默认所有 Agent 都有，含 HRBP 新招实例）：
-  - 上游内置：`1password`、`healthcheck`、`model-usage`、`nano-pdf`、`skill-creator`、`ordercli`、`session-logs`、`tmux`、`weather`、`xurl`、`video-frames`
-  - OFB 额外新增：`self-improving`
-- 非基线上游技能默认从“全员默认配备”中剔除，仅可通过 `BUILTIN_SKILLS` / `--builtin-skills` 按 Agent 追加。
-- addon 若提供 `skills/`（全局 skills），默认对所有 agent 可见；addon 若提供 `crew/<template>/skills/`，仅该 crew 实例可见。
-- `DENIED_SKILLS` 始终作为最终裁剪层（从“基线 + 追加”里减掉指定 skill）。
-- `it-engineer` 与 `developer` 模板默认追加：`github`、`gh-issues`、`coding-agent`。
-
-当前从上游默认全员集合中剔除的内置 skill（如需可按 Agent 追加）：
-
-```text
-apple-notes
-apple-reminders
-bear-notes
-blogwatcher
-blucli
-bluebubbles
-browser-guide
-camsnap
-canvas
-clawhub
-coding-agent
-discord
-eightctl
-gemini
-gh-issues
-gifgrep
-github
-gog
-goplaces
-himalaya
-imsg
-mcporter
-nano-banana-pro
-notion
-obsidian
-openai-image-gen
-openai-whisper
-openai-whisper-api
-openhue
-oracle
-peekaboo
-sag
-sherpa-onnx-tts
-slack
-songsee
-sonoscli
-spotify-player
-summarize
-things-mac
-trello
-voice-call
-wacli
-```
-
-Agent 生命周期（新增/调岗/移除/消耗统计）由 HRBP skill 执行，内部脚本位于 `crews/hrbp/skills/*/scripts/`，不作为人类用户主入口。
 
 ## Addon 开发
 

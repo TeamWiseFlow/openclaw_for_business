@@ -13,7 +13,7 @@
 | 属性 | 规范 |
 |------|------|
 | 声明方式 | SOUL.md 中 `crew-type: internal` |
-| 技能继承 | 自动继承基线技能 + 全局共享技能（inherit 模式） |
+| 技能继承 | 自动继承基线技能（含 self-improving）；项目/addon 全局技能需在 `BUILTIN_SKILLS` 显式声明 |
 | 命令权限 | 按 SOUL.md 中的 command-tier 声明（T1/T2/T3） |
 | 路由模式 | spawn + bind 双模式均可 |
 | 生命周期管理 | 由 Main Agent 管理（通过专属技能脚本） |
@@ -22,7 +22,7 @@
 | 模板目录 | `~/.openclaw/crew_templates/`，仅 Main Agent 可访问 |
 
 **内置对内 Crew（全局唯一，不可删除）**：
-- `main` — 路由调度器（T2）
+- `main` — 路由调度器、对内 crew 生命周期管理（不含 hrbp 和 it-engineer）（T2）
 - `hrbp` — 对外 Crew 生命周期管理（T3）
 - `it-engineer` — OFB 系统运维（T3）
 
@@ -101,4 +101,4 @@ crew-type: external
 command-tier: T0
 ```
 
-未声明 `crew-type` 时，`apply-addons.sh` 默认视为 `external`（更安全的默认值），并输出警告日志。
+若 addon.json 同时声明了 `crew-type`（全局）或 `crew-types.<template-id>`（逐模板），其值必须与 SOUL.md 一致；不一致会被 `apply-addons.sh` 直接拒绝。

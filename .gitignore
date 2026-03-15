@@ -7,7 +7,6 @@ addons/*/
 
 # 运行时数据（使用上游默认 ~/.openclaw/，防止误创建本地目录）
 workspace/
-.openclaw-data/
 
 # Node modules
 node_modules/

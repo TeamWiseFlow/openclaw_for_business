@@ -3,9 +3,10 @@
 # 用法: bash ./skills/hrbp-recruit/scripts/add-agent.sh <agent-id> [--crew-type <internal|external>] [--bind <channel>:<accountId>] [--builtin-skills <skill1,skill2|all>] [--template-id <template-id>] [--note <text>]
 #
 # crew-type 决定技能解析模式：
-#   internal（对内 Crew）：inherit 模式 —— 基线技能 + 全局共享 + 额外 - 拒绝 + workspace
+#   internal（对内 Crew）：inherit 模式 —— 基线技能 + 额外 - 拒绝 + workspace
+#                         项目级 / add-on 全局 skills 不自动继承，需在 BUILTIN_SKILLS 显式声明
 #                         加入 Main Agent 的 allowAgents（可通过 spawn 路由）
-#   external���对外 Crew）：declare 模式 —— 仅 DECLARED_SKILLS + workspace 技能
+#   external（对外 Crew）：declare 模式 —— 仅 DECLARED_SKILLS + workspace 技能
 #                         不加入 allowAgents（bind-only，不可通过 Main Agent 路由）
 #
 # 默认 crew-type = external（对外更受控，更安全）
@@ -15,7 +16,6 @@ OPENCLAW_HOME="$HOME/.openclaw"
 CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SYNC_TEAM_DIRECTORY_SCRIPT="$SCRIPT_DIR/../../hrbp-common/scripts/sync-team-directory.sh"
-SYNC_EXTERNAL_REGISTRY_SCRIPT="$SCRIPT_DIR/../../hrbp-common/scripts/sync-external-registry.sh"
 
 source "$SCRIPT_DIR/../../hrbp-common/scripts/lib.sh"
 
@@ -75,51 +75,6 @@ list_workspace_skill_names() {
       basename "$skill_dir"
     fi
   done | sort
-}
-
-list_global_shared_skill_names() {
-  local bundled_dir="$1"
-  local shared_file="$OPENCLAW_HOME/GLOBAL_SHARED_SKILLS"
-
-  # 优先读取运行时清单（由 apply-addons.sh 维护）
-  if [ -f "$shared_file" ]; then
-    split_skill_tokens "$(cat "$shared_file")" | sort -u
-    return
-  fi
-
-  # 兜底：若可定位到项目根目录，则扫描项目级与 addon 级全局 skills
-  local project_root=""
-  if [ -n "$bundled_dir" ] && [ -d "$bundled_dir" ]; then
-    local openclaw_dir
-    openclaw_dir="$(dirname "$bundled_dir")"
-    local candidate_root
-    candidate_root="$(dirname "$openclaw_dir")"
-    if [ -d "$candidate_root/skills" ] || [ -d "$candidate_root/addons" ]; then
-      project_root="$candidate_root"
-    fi
-  fi
-
-  [ -n "$project_root" ] || return 0
-
-  {
-    if [ -d "$project_root/skills" ]; then
-      for skill_dir in "$project_root"/skills/*/; do
-        [ -d "$skill_dir" ] || continue
-        if [ -f "${skill_dir}SKILL.md" ]; then
-          basename "$skill_dir"
-        fi
-      done
-    fi
-
-    if [ -d "$project_root/addons" ]; then
-      for skill_dir in "$project_root"/addons/*/skills/*/; do
-        [ -d "$skill_dir" ] || continue
-        if [ -f "${skill_dir}SKILL.md" ]; then
-          basename "$skill_dir"
-        fi
-      done
-    fi
-  } | sort -u
 }
 
 find_bundled_skills_dir() {
@@ -224,11 +179,13 @@ resolve_additional_bundled_skill_names() {
 list_declared_skill_names() {
   local declared_file="$1"
   [ -f "$declared_file" ] || return 0
-  split_skill_tokens "$(cat "$declared_file")" | sort -u
+  split_skill_tokens "$(cat "$declared_file")" \
+    | grep -Ev '^(self-improving|self-improve)$' \
+    | sort -u
 }
 
 # 构建技能 JSON
-# crew_type = "internal" → inherit 模式（基线 + 全局 + 额外 - 拒绝 + workspace）
+# crew_type = "internal" → inherit 模式（基线 + 额外 - 拒绝 + workspace）
 # crew_type = "external" → declare 模式（DECLARED_SKILLS + workspace 只）
 build_agent_skills_json() {
   local workspace_dir="$1"
@@ -264,11 +221,9 @@ console.log(JSON.stringify(Array.from(new Set(lines))));
   baseline_bundled="$(list_default_global_skill_names)"
   local additional_bundled=""
   additional_bundled="$(resolve_additional_bundled_skill_names "$bundled_raw" "$bundled_dir")"
-  local global_shared_skills=""
-  global_shared_skills="$(list_global_shared_skill_names "$bundled_dir")"
 
   local merged_global_skills=""
-  merged_global_skills="$(printf '%s\n%s\n%s\n' "$baseline_bundled" "$additional_bundled" "$global_shared_skills" \
+  merged_global_skills="$(printf '%s\n%s\n' "$baseline_bundled" "$additional_bundled" \
     | awk 'NF && !seen[$0]++')"
 
   local allowed_bundled=""
@@ -333,6 +288,11 @@ while [ $# -gt 0 ]; do
       TEMPLATE_ID="$2"
       shift 2
       ;;
+    --template)
+      [ -z "$2" ] && { echo "❌ --template requires <template-id>"; exit 1; }
+      TEMPLATE_ID="$2"
+      shift 2
+      ;;
     --note)
       [ -z "$2" ] && { echo "❌ --note requires <text>"; exit 1; }
       RECRUIT_NOTE="$2"
@@ -367,6 +327,21 @@ if [ ! -d "$WORKSPACE" ]; then
   exit 1
 fi
 
+# 对外 Crew 安全约束：必须声明技能，且必须有反馈目录
+if [ "$CREW_TYPE" = "external" ]; then
+  DECLARED_FILE="$WORKSPACE/DECLARED_SKILLS"
+  if [ ! -f "$DECLARED_FILE" ]; then
+    echo "❌ External crew requires DECLARED_SKILLS: $DECLARED_FILE"
+    echo "   External crews use declare-mode and must explicitly declare allowed skills."
+    exit 1
+  fi
+  if split_skill_tokens "$(cat "$DECLARED_FILE")" | grep -Eq '^(self-improving|self-improve)$'; then
+    echo "❌ External crew cannot declare self-improving skills."
+    exit 1
+  fi
+  mkdir -p "$WORKSPACE/feedback"
+fi
+
 BUILTIN_FILE="$WORKSPACE/BUILTIN_SKILLS"
 if [ -z "$BUILTIN_SKILLS_RAW" ] && [ -f "$BUILTIN_FILE" ]; then
   BUILTIN_SKILLS_RAW="$(cat "$BUILTIN_FILE")"
@@ -383,6 +358,17 @@ SKILLS_JSON="$(build_agent_skills_json \
   "$DENIED_NAMES" \
   "$BUNDLED_SKILLS_DIR" \
   "$CREW_TYPE")"
+
+if [ "$CREW_TYPE" = "external" ]; then
+  if SKILLS_JSON="$SKILLS_JSON" node -e '
+const skills = JSON.parse(process.env.SKILLS_JSON || "[]");
+const blocked = new Set(["self-improving", "self-improve"]);
+process.exit(skills.some((s) => blocked.has(s)) ? 0 : 1);
+'; then
+    echo "❌ External crew final skill set contains blocked self-improving skill."
+    exit 1
+  fi
+fi
 
 # 技能模式描述（用于日志）
 if [ "$CREW_TYPE" = "external" ]; then

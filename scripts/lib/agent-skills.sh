@@ -6,7 +6,8 @@
 #
 #   inherit 模式（对内 Crew，crew-type: internal）：
 #   - 每个 Agent 默认都使用「全局基线技能集」（见 list_default_global_skill_names）
-#   - add-on / 项目级全局 skills 默认对所有对内 Agent 开放（见 list_global_shared_skill_names）
+#   - 项目级 / add-on 全局 skills 不自动继承；需在 BUILTIN_SKILLS 中显式声明
+#   - self-improving 仍在基线技能中，确保对内 Crew 保留自我改进能力
 #   - 可通过 BUILTIN_SKILLS（或显式参数）在基线之上追加 bundled skills
 #   - 可通过 DENIED_SKILLS（或显式参数）从最终列表中排除技能
 #
@@ -100,40 +101,6 @@ list_workspace_skill_names() {
   done | sort
 }
 
-list_global_shared_skill_names() {
-  local project_root="$1"
-  local openclaw_home="$2"
-  local shared_file="$openclaw_home/GLOBAL_SHARED_SKILLS"
-
-  # 优先读取运行时清单（由 apply-addons.sh 维护）
-  if [ -f "$shared_file" ]; then
-    split_skill_tokens "$(cat "$shared_file")" | sort -u
-    return
-  fi
-
-  # 兜底：从项目目录扫描「项目级 skills + addon 级 skills」
-  # 注意：只扫描 addons/*/skills，不扫描 addons/*/crew/*/skills
-  {
-    if [ -d "$project_root/skills" ]; then
-      for skill_dir in "$project_root"/skills/*/; do
-        [ -d "$skill_dir" ] || continue
-        if [ -f "${skill_dir}SKILL.md" ]; then
-          basename "$skill_dir"
-        fi
-      done
-    fi
-
-    if [ -d "$project_root/addons" ]; then
-      for skill_dir in "$project_root"/addons/*/skills/*/; do
-        [ -d "$skill_dir" ] || continue
-        if [ -f "${skill_dir}SKILL.md" ]; then
-          basename "$skill_dir"
-        fi
-      done
-    fi
-  } | sort -u
-}
-
 # 读取对外 Crew 的声明式技能列表（DECLARED_SKILLS 文件）
 list_declared_skill_names() {
   local declared_file="$1"
@@ -142,7 +109,9 @@ list_declared_skill_names() {
     return
   fi
 
-  split_skill_tokens "$(cat "$declared_file")" | sort -u
+  split_skill_tokens "$(cat "$declared_file")" \
+    | grep -Ev '^(self-improving|self-improve)$' \
+    | sort -u
 }
 
 # 读取额外 bundled skills（来自 BUILTIN_SKILLS 文件或命令行参数）
@@ -202,7 +171,7 @@ resolve_denied_skill_names() {
 
 # 计算 Agent 的技能过滤配置（内部使用）
 # 模式由 crew-type 决定：
-#   internal → inherit 模式（基线 + 全局共享 + 额外 - 拒绝 + workspace）
+#   internal → inherit 模式（基线 + 额外 - 拒绝 + workspace）
 #   external → declare 模式（仅 DECLARED_SKILLS + workspace）
 resolve_agent_skills_json() {
   local agent_id="$1"
@@ -230,6 +199,7 @@ resolve_agent_skills_json() {
     declared_skills="$(list_declared_skill_names "$declared_file")"
 
     printf '%s\n%s\n' "$declared_skills" "$workspace_skills" \
+      | grep -Ev '^(self-improving|self-improve)$' \
       | awk 'NF && !seen[$0]++' \
       | node -e '
 const fs = require("fs");
@@ -252,11 +222,8 @@ console.log(JSON.stringify(Array.from(new Set(lines))));
     "$builtin_file" \
     "$project_root")"
 
-  local global_shared_skills=""
-  global_shared_skills="$(list_global_shared_skill_names "$project_root" "$openclaw_home")"
-
   local merged_global_skills=""
-  merged_global_skills="$(printf '%s\n%s\n%s\n' "$default_builtins" "$additional_builtins" "$global_shared_skills" \
+  merged_global_skills="$(printf '%s\n%s\n' "$default_builtins" "$additional_builtins" \
     | awk 'NF && !seen[$0]++')"
 
   local denied_names

@@ -3,10 +3,7 @@
     "enabled": true,
     "headless": false,
     "defaultProfile": "openclaw",
-    "extraArgs": [
-    "--window-size=1920,1080",
-    "--window-position=0,0"
-    ],
+    "extraArgs": ["--window-size=1920,1080", "--window-position=0,0"],
     "ssrfPolicy": {
       "dangerouslyAllowPrivateNetwork": true
     }
@@ -17,7 +14,7 @@
       "siliconflow": {
         "api": "openai-completions",
         "baseUrl": "https://api.siliconflow.cn/v1",
-        "apiKey": "${SILICONFLOW_API_KEY}",
+        "apiKey": "",
         "models": [
           {
             "id": "Pro/moonshotai/Kimi-K2.5",
@@ -67,10 +64,10 @@
       "thinkingDefault": "medium",
       "model": {
         "primary": "siliconflow/Pro/zai-org/GLM-5",
-        "imageModel": "siliconflow/Pro/moonshotai/Kimi-K2.5",
-        "fallbacks": [
-          "siliconflow/Pro/MiniMaxAI/MiniMax-M2.5"
-        ]
+        "fallbacks": ["siliconflow/Pro/MiniMaxAI/MiniMax-M2.5"]
+      },
+      "imageModel": {
+        "primary": "siliconflow/Pro/moonshotai/Kimi-K2.5"
       },
       "compaction": {
         "mode": "safeguard"
@@ -98,10 +95,7 @@
           "weather",
           "xurl",
           "video-frames",
-          "self-improving",
-          "browser-guide",
-          "rss-reader",
-          "smart-search"
+          "self-improving"
         ],
         "subagents": {
           "allowAgents": ["main", "hrbp", "it-engineer"]
@@ -109,7 +103,7 @@
         "tools": {
           "exec": {
             "host": "gateway",
-            "security": "allowlist",
+            "security": "full",
             "ask": "off"
           }
         }
@@ -130,15 +124,7 @@
           "weather",
           "xurl",
           "video-frames",
-          "self-improving",
-          "browser-guide",
-          "rss-reader",
-          "smart-search",
-          "hrbp-list",
-          "hrbp-modify",
-          "hrbp-recruit",
-          "hrbp-remove",
-          "hrbp-usage"
+          "self-improving"
         ],
         "tools": {
           "exec": {
@@ -167,32 +153,12 @@
           "self-improving",
           "github",
           "gh-issues",
-          "coding-agent",
-          "browser-guide",
-          "rss-reader",
-          "smart-search"
+          "coding-agent"
         ],
         "tools": {
           "exec": {
             "host": "gateway",
             "security": "full",
-            "ask": "off"
-          }
-        }
-      },
-      {
-        "id": "customer-service",
-        "name": "客服助手",
-        "workspace": "~/.openclaw/workspace-customer-service",
-        "skills": [
-          "nano-pdf",
-          "xurl",
-          "mcporter"
-        ],
-        "tools": {
-          "exec": {
-            "host": "gateway",
-            "security": "allowlist",
             "ask": "off"
           }
         }
@@ -223,18 +189,13 @@
         "channel": "feishu",
         "accountId": "it-engineer-bot"
       }
-    },
-    {
-      "agentId": "customer-service",
-      "comment": "customer-service-bot -> 客服助手",
-      "match": {
-        "channel": "feishu",
-        "accountId": "customer-service-bot"
-      }
     }
   ],
   "messages": {
     "ackReactionScope": "group-mentions"
+  },
+  "session": {
+    "dmScope": "per-channel-peer"
   },
   "commands": {
     "native": "auto",
@@ -291,14 +252,6 @@
         },
         "it-engineer-bot": {
           "name": "IT Engineer Bot",
-          "appId": "",
-          "appSecret": "",
-          "dmPolicy": "open",
-          "allowFrom": ["*"],
-          "groupPolicy": "allowlist"
-        },
-        "customer-service-bot": {
-          "name": "客服助手",
           "appId": "",
           "appSecret": "",
           "dmPolicy": "open",

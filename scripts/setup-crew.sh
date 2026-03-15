@@ -102,6 +102,26 @@ resolve_builtin_file_for_agent() {
   printf '%s\n' "$workspace_file"
 }
 
+resolve_crew_type_from_soul() {
+  local soul_file="$1"
+  if [ ! -f "$soul_file" ]; then
+    printf 'external\n'
+    return
+  fi
+
+  local crew_type
+  crew_type="$(grep -m1 '^crew-type:' "$soul_file" 2>/dev/null | sed 's/^crew-type:[[:space:]]*//' | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+  case "$crew_type" in
+    internal|external) printf '%s\n' "$crew_type" ;;
+    *) printf 'external\n' ;;
+  esac
+}
+
+resolve_template_crew_type() {
+  local template_dir="$1"
+  resolve_crew_type_from_soul "$template_dir/SOUL.md"
+}
+
 sync_agent_skill_filter() {
   local agent_id="$1"
   local agent_override=""
@@ -192,6 +212,9 @@ for agent_id in $BUILTIN_CREWS; do
     if [ -f "$agent_dir/BUILTIN_SKILLS" ]; then
       cp "$agent_dir/BUILTIN_SKILLS" "$dest/"
     fi
+    if [ -f "$agent_dir/ALLOWED_COMMANDS" ]; then
+      cp "$agent_dir/ALLOWED_COMMANDS" "$dest/"
+    fi
     continue
   fi
 
@@ -204,6 +227,10 @@ for agent_id in $BUILTIN_CREWS; do
   # 复制 BUILTIN_SKILLS（如有）
   if [ -f "$agent_dir/BUILTIN_SKILLS" ]; then
     cp "$agent_dir/BUILTIN_SKILLS" "$dest/"
+  fi
+  # 复制 ALLOWED_COMMANDS（如有）
+  if [ -f "$agent_dir/ALLOWED_COMMANDS" ]; then
+    cp "$agent_dir/ALLOWED_COMMANDS" "$dest/"
   fi
   # 复制 EXTERNAL_CREW_REGISTRY.md（如有，hrbp 专用）
   if [ -f "$agent_dir/EXTERNAL_CREW_REGISTRY.md" ]; then
@@ -231,13 +258,16 @@ echo "  ✅ Shared protocols (RULES.md, TEMPLATES.md, CREW_TYPES.md) copied"
 # ─── 3a. 同步对内 crew 模板库到 crew_templates/（供 Main Agent 运行时参考） ──
 CREW_TEMPLATES_DEST="$OPENCLAW_HOME/crew_templates"
 mkdir -p "$CREW_TEMPLATES_DEST"
-# 只复制内置（对内）模板：main、hrbp、it-engineer
-for crew_id in $BUILTIN_CREWS; do
-  template_dir="$CREWS_DIR/$crew_id"
+# 清空旧模板目录，防止类型迁移时残留
+find "$CREW_TEMPLATES_DEST" -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} +
+# 复制所有声明为 internal 的模板（含 addon 引入模板）
+for template_dir in "$CREWS_DIR"/*/; do
   [ -d "$template_dir" ] || continue
-  # 同步模板（总是覆盖——模板由代码仓控制）
-  rm -rf "$CREW_TEMPLATES_DEST/$crew_id"
-  cp -r "$template_dir" "$CREW_TEMPLATES_DEST/$crew_id"
+  template_id="$(basename "$template_dir")"
+  [ "$template_id" = "shared" ] && continue
+  crew_type="$(resolve_template_crew_type "$template_dir")"
+  [ "$crew_type" = "internal" ] || continue
+  cp -r "$template_dir" "$CREW_TEMPLATES_DEST/$template_id"
 done
 # 同步 shared/ 协议到 crew_templates/
 if [ -d "$CREWS_DIR/shared" ]; then
@@ -252,20 +282,15 @@ echo "  ✅ Internal crew templates synced to $CREW_TEMPLATES_DEST"
 # ─── 3b. 同步对外 crew 模板库到 hrbp_templates/（供 HRBP 运行时参考） ──
 HRBP_TEMPLATES_DEST="$OPENCLAW_HOME/hrbp_templates"
 mkdir -p "$HRBP_TEMPLATES_DEST"
-# 复制所有非内置模板（对外模板 + 用户自建模板 + 脚手架）
+# 清空旧模板目录，防止类型迁移时残留
+find "$HRBP_TEMPLATES_DEST" -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} +
+# 复制所有声明为 external 的模板（含脚手架与 addon 引入模板）
 for template_dir in "$CREWS_DIR"/*/; do
   [ -d "$template_dir" ] || continue
   template_id="$(basename "$template_dir")"
-  # 跳过 shared/ 目录
   [ "$template_id" = "shared" ] && continue
-  # 跳过内置对内 crew 模板（它们在 crew_templates/）
-  is_builtin=false
-  for builtin_id in $BUILTIN_CREWS; do
-    [ "$template_id" = "$builtin_id" ] && is_builtin=true && break
-  done
-  [ "$is_builtin" = "true" ] && continue
-  # 同步到 hrbp_templates/（总是覆盖）
-  rm -rf "$HRBP_TEMPLATES_DEST/$template_id"
+  crew_type="$(resolve_template_crew_type "$template_dir")"
+  [ "$crew_type" = "external" ] || continue
   cp -r "$template_dir" "$HRBP_TEMPLATES_DEST/$template_id"
 done
 # 同步 index.md（含外部模板列表）
@@ -285,6 +310,23 @@ if [ -f "$CONFIG_PATH" ]; then
     const openclawHome = process.env.OPENCLAW_HOME || (process.env.HOME + '/.openclaw');
     const currentHome = process.env.HOME || '';
     let changed = false;
+
+    // 兼容旧模板误写：agents.defaults.model.imageModel 应迁移到 agents.defaults.imageModel.primary
+    const defaults = c.agents?.defaults;
+    if (defaults && defaults.model && typeof defaults.model === 'object' && !Array.isArray(defaults.model)) {
+      const misplacedImageModel = defaults.model.imageModel;
+      if (typeof misplacedImageModel === 'string' && misplacedImageModel.trim()) {
+        if (!defaults.imageModel || typeof defaults.imageModel !== 'object' || Array.isArray(defaults.imageModel)) {
+          defaults.imageModel = {};
+        }
+        if (!defaults.imageModel.primary) {
+          defaults.imageModel.primary = misplacedImageModel.trim();
+        }
+        delete defaults.model.imageModel;
+        changed = true;
+      }
+    }
+
     for (const agent of (c.agents?.list || [])) {
       if (typeof agent.workspace !== 'string') continue;
       const ws = agent.workspace.trim();
@@ -339,6 +381,7 @@ if [ -f "$CONFIG_PATH" ]; then
 
   MAIN_SKILLS_RESULT="$MAIN_SKILLS_RESULT" HRBP_SKILLS_RESULT="$HRBP_SKILLS_RESULT" IT_SKILLS_RESULT="$IT_SKILLS_RESULT" OPENCLAW_HOME="$OPENCLAW_HOME" node -e "
     const fs = require('fs');
+    const path = require('path');
     const c = JSON.parse(fs.readFileSync('$CONFIG_PATH', 'utf8'));
     const openclawHome = process.env.OPENCLAW_HOME || (process.env.HOME + '/.openclaw');
 
@@ -357,12 +400,28 @@ if [ -f "$CONFIG_PATH" ]; then
       else c.agents.list.push(next);
     };
 
+    const getCrewType = (id) => {
+      if (id === 'main' || id === 'hrbp' || id === 'it-engineer') return 'internal';
+      const agent = c.agents.list.find((entry) => entry.id === id);
+      if (!agent) return 'external';
+      const wsRaw = typeof agent.workspace === 'string' && agent.workspace.trim()
+        ? agent.workspace.trim()
+        : ('~/.openclaw/workspace-' + id);
+      const ws = wsRaw.replace(/^~(?=\\/|$)/, process.env.HOME || '');
+      const soulPath = path.join(ws, 'SOUL.md');
+      try {
+        const soul = fs.readFileSync(soulPath, 'utf8');
+        const match = soul.match(/^crew-type:\\s*(internal|external)\\s*$/m);
+        return match ? match[1] : 'external';
+      } catch (_) {
+        return 'external';
+      }
+    };
+
     upsertAgent('main', (prev) => {
-      // main、hrbp、it-engineer 都是对内 crew，保留在 allowAgents
       const allowAgents = Array.isArray(prev?.subagents?.allowAgents) ? prev.subagents.allowAgents : [];
       const mergedAllowAgents = Array.from(new Set([...allowAgents, 'main', 'hrbp', 'it-engineer']));
-      // 确保外部 crew 不在 allowAgents 中（防御性清理）
-      const filteredAllowAgents = mergedAllowAgents; // 脚本层面已保证外部 crew 不加入
+      const filteredAllowAgents = mergedAllowAgents.filter((id) => getCrewType(id) === 'internal');
       const base = {
         ...prev,
         id: 'main',
@@ -425,7 +484,7 @@ if [ -f "$CONFIG_PATH" ]; then
   # ─── 4b. 应用 Command Tier → exec-approvals + tools.exec ──────
   echo "  📝 Applying command tier exec policies..."
   EXEC_APPROVALS_PATH="$OPENCLAW_HOME/exec-approvals.json"
-  apply_exec_tiers "$CONFIG_PATH" "$EXEC_APPROVALS_PATH" "$CREWS_DIR" "$PROJECT_ROOT" "$BUILTIN_CREWS"
+  apply_exec_tiers "$CONFIG_PATH" "$EXEC_APPROVALS_PATH" "$CREWS_DIR" "$PROJECT_ROOT"
 else
   echo "  ⚠️  openclaw.json not found at $CONFIG_PATH"
   echo "     Will be created on first start (dev.sh / reinstall-daemon.sh)"
