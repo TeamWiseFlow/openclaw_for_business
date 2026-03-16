@@ -85,7 +85,7 @@ After user confirms the proposal:
    - Keep Main Agent `subagents.allowAgents` untouched（external bind-only）
    - Add binding if specified
    - Write `skills` allowlist from `DECLARED_SKILLS` + workspace skills only（declare-mode）
-   - Enforce external constraints: no self-improving skill, create `feedback/` directory
+   - Enforce external constraints: create `feedback/` directory
    - Update HRBP Agent's MEMORY.md（Instance Registry + Operation History）
 
 ### Step 6: Update HRBP Memory

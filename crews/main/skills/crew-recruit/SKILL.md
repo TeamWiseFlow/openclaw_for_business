@@ -36,5 +36,5 @@
 ## 重要约束
 - 不可创建内置保护名单中的 agent：main、hrbp、it-engineer
 - workspace 必须事先创建（脚本会检查）
-- 对内 Crew 使用**继承模式**技能，自动获得基线技能（含 `self-improving`）
+- 对内 Crew 使用**继承模式**技能，自动获得基线技能
 - 项目级 / addon 全局技能默认不自动继承；需要在目标 workspace 的 `BUILTIN_SKILLS` 中显式声明

@@ -43,10 +43,10 @@ Every A/P/S task ends with closeout (see TEMPLATES.md). Mark "值得沉淀" if i
 - Sub-agent results announce back to spawner
 - Requesting agent syncs results to its own channel
 
-## Self-Iteration
-- **Internal Crew**: can self-improve via `self-improving` skill (allowed for agent-local changes)
+## Crew Upgrades
+- **Internal Crew**: upgrades initiated by the managing agent or human user.
   Record what changed, why, how to rollback. S-class changes need user review.
-- **External Crew**: self-improvement is PROHIBITED. Improvements are managed by HRBP.
+- **External Crew**: upgrades are managed exclusively by HRBP.
 
 ## Crew Types
 See `CREW_TYPES.md` for the authoritative definition of internal vs external crews.
