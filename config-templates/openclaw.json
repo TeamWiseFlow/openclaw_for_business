@@ -81,6 +81,11 @@
       "imageModel": {
         "primary": "siliconflow/Pro/moonshotai/Kimi-K2.5"
       },
+      "models": {
+        "siliconflow/Pro/zai-org/GLM-5": { "alias": "default" },
+        "siliconflow/Pro/MiniMaxAI/MiniMax-M2.5": { "alias": "minimax" },
+        "siliconflow/Pro/moonshotai/Kimi-K2.5": { "alias": "kimi" }
+      },
       "compaction": {
         "mode": "safeguard"
       },
@@ -106,8 +111,7 @@
           "tmux",
           "weather",
           "xurl",
-          "video-frames",
-          "self-improving"
+          "video-frames"
         ],
         "subagents": {
           "allowAgents": [
@@ -139,8 +143,7 @@
           "tmux",
           "weather",
           "xurl",
-          "video-frames",
-          "self-improving"
+          "video-frames"
         ],
         "tools": {
           "exec": {
@@ -166,7 +169,6 @@
           "weather",
           "xurl",
           "video-frames",
-          "self-improving",
           "github",
           "gh-issues",
           "coding-agent"
@@ -424,7 +426,7 @@
       "host": "gateway"
     },
     "agentToAgent": {
-      "enabled": true
+      "enabled": false
     }
   }
 }
