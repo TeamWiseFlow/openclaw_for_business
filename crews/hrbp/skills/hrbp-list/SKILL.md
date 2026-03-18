@@ -1,37 +1,32 @@
-# HRBP Skill — Agent Roster (花名册查询)
+# HRBP Skill — External Crew Roster (对外 Crew 花名册)
 
 ## Trigger
-User asks to list team members, check current agents, inspect bindings or route modes. Examples:
-- "现在有哪些 agent？"
-- "列一下当前 crew"
-- "谁是直连绑定，谁是 spawn？"
-- "看下团队花名册"
+User asks to list external crew instances, check current external agents, or inspect their bindings/status. Examples:
+- "现在有哪些对外 crew？"
+- "列一下当前的客服 agent"
+- "看下外部 crew 花名册"
+- "哪些 agent 是绑定飞书的？"
+
+> **Scope: external crews only.** Internal crews (main / hrbp / it-engineer) are managed by Main Agent — not listed here.
 
 ## Procedure
 
-### Step 1: Clarify Scope (L1)
-Confirm what user wants:
-- Full roster (default)
-- Specific agent details
-- Focus on route mode / bindings / workspace status
-
-If unclear, default to full roster.
-
-### Step 2: Query Roster (L1)
+### Step 1: Query Roster (L1)
 Run:
 
 ```bash
-# List all registered agents with route/binding/workspace status
+# List all registered external agents with binding/workspace status
 bash ./skills/hrbp-list/scripts/list-agents.sh
 ```
 
-### Step 3: Summarize for User (L1)
+### Step 2: Summarize for User (L1)
 Present concise takeaways:
-1. Total agent count
-2. Which agents are spawn / binding / both
+1. Total external crew count
+2. Each instance: ID, name, source template, channel bindings
 3. Missing workspace or abnormal status (if any)
 
 ## Notes
 - This skill is read-only (L1) — no system modifications
-- Data source: `~/.openclaw/TEAM_DIRECTORY.md`（由 `setup-crew.sh` 自动维护）
-- If team directory is missing, guide user to run `./scripts/setup-crew.sh` once
+- Data source: `EXTERNAL_CREW_REGISTRY.md`（本 workspace 权威记录）+ `~/.openclaw/openclaw.json`（bindings/status）
+- External crews are **bind-only** — no spawn mode
+- If registry is empty or missing, check if any external crews have been recruited yet

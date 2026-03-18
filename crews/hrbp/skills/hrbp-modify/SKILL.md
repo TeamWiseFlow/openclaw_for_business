@@ -6,7 +6,7 @@
 - If the user asks to modify an internal crew, politely explain this and redirect.
 
 ## Trigger
-User requests to change/update an existing **external** agent instance, or Main Agent spawns HRBP for modification.
+User requests to change/update an existing **external** agent instance.
 
 ## Procedure
 

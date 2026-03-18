@@ -6,7 +6,7 @@
 - If the user asks to remove an internal crew, politely decline and explain they are protected.
 
 ## Trigger
-User requests to delete/remove an existing **external** agent instance, or Main Agent spawns HRBP for removal.
+User requests to delete/remove an existing **external** agent instance.
 
 ## Important
 **This entire procedure is L3 — every step that modifies the system requires explicit user confirmation.**
@@ -39,10 +39,8 @@ After user confirms:
 1. Run: `bash ./skills/hrbp-remove/scripts/remove-agent.sh <instance-id>`
 2. This will:
    - Remove instance from `agents.list` in openclaw.json
-   - Remove from Main Agent's `subagents.allowAgents`
    - Remove all related `bindings` entries
    - Archive workspace to `~/.openclaw/archived/workspace-<instance-id>-<timestamp>/`
-   - Update Main Agent's `MEMORY.md` roster
 
 ### Step 5: Update HRBP Registry
 - Remove entry from `EXTERNAL_CREW_REGISTRY.md` in your workspace

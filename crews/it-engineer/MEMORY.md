@@ -2,9 +2,10 @@
 
 ## 关于 OFB 项目
 
-## Crew 通讯录
-- 当前启用 crew 通讯录：`~/.openclaw/TEAM_DIRECTORY.md`（单一信源，所有 agent 均可直接读取）
-- 任何 crew 增删改后，以该通讯录为准确认当前启用实例和路由方式
+## Crew 通讯录（只读参考）
+- 对内 Crew 通讯录：`~/.openclaw/crew_templates/TEAM_DIRECTORY.md`（由 Main Agent 维护，IT Engineer 只读）
+- 对外 Crew 注册表：`~/.openclaw/workspace-hrbp/EXTERNAL_CREW_REGISTRY.md`（由 HRBP 维护，IT Engineer 只读）
+- Crew 的增删改**不属于 IT Engineer 职责**；遇到 crew 相关配置问题，IT Engineer 可读取以上文件辅助排查，但不主动修改 crew 配置
 
 ### 项目基本信息
 - **OFB 项目名称**：openclaw-for-business
