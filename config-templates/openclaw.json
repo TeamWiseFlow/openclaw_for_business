@@ -230,7 +230,7 @@
       "enabled": true,
       "entries": {
         "boot-md": {
-          "enabled": true
+          "enabled": false
         },
         "command-logger": {
           "enabled": true

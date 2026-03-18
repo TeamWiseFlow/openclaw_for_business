@@ -112,14 +112,14 @@ openclaw_for_business/
 
 微信客服场景通常需要两项配置组合使用：
 
-1. **`channels.awada.perMsgMaxLen`**（如 `500`）：微信对单条消息有长度限制，超长回复会被截断。设置此项后，awada-extension 会在发送层自动将长回复拆分为多条，不影响 LLM 生成。
+1. **`channels.awada.perMsgMaxLen`**（如 `1800`）：微信对单条消息有长度限制，超长回复会被截断。设置此项后，awada-extension 会在发送层自动将长回复拆分为多条，不影响 LLM 生成。
 
 2. **`session.dmScope: "per-channel-peer"`**：让每个微信用户（`user_id_external`）独享独立 session，用户 A 的对话上下文与用户 B 完全隔离。`session` 是顶层配置字段，与 `channels` 平级。
 
 ```json
 {
   "channels": {
-    "awada": { "perMsgMaxLen": 500, "...": "其他配置" }
+    "awada": { "perMsgMaxLen": 1800, "...": "其他配置" }
   },
   "session": {
     "dmScope": "per-channel-peer"
@@ -166,23 +166,7 @@ cd <OFB_PROJECT_ROOT>
 3. 安装 / 更新依赖（`pnpm install`）并重新构建（`pnpm build`）
 4. 重新应用 addons + 同步 crew 配置（`apply-addons.sh` 内含 `setup-crew.sh`）
 
-升级完成后通常需要重启服务。
-
-### ⚠️ 升级前必须检查：系统是否空闲？
-
-**绝对不能在系统繁忙时升级！** 升级可能中断正在运行的 agent 会话。
-
-检查方法：
-```bash
-# 查看是否有活跃的 agent 会话
-ls ~/.openclaw/agents/*/sessions/ 2>/dev/null | head -20
-# 或直接问用户：最近有没有其他同事正在使用 AI 助手处理任务？
-```
-
-如果有任务在运行：
-- **不执行升级**
-- 告知用户当前情况
-- 建议在所有人都不用的时候（如下班后、凌晨）再操作
+升级完成后通常需要重启服务（详见 AGENTS.md **服务重启流程**）。
 
 ---
 
