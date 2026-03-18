@@ -113,7 +113,7 @@ skills/                    # 全局共享技能（项目根目录，所有 Agent
 
 默认策略（OFB）：
 - 每个 Agent 默认使用固定基线 bundled skills：
-  `1password`、`healthcheck`、`model-usage`、`nano-pdf`、`skill-creator`、`ordercli`、`session-logs`、`tmux`、`weather`、`xurl`、`video-frames`、`self-improving`
+  `1password`、`healthcheck`、`model-usage`、`nano-pdf`、`skill-creator`、`ordercli`、`session-logs`、`tmux`、`weather`、`xurl`、`video-frames`
 - addon 根目录 `skills/` 安装的全局 skills，默认对所有 Agent 开放
 - addon `crew/<template>/skills/` 只安装到该实例 workspace，不会开放给其他 Agent
 - `BUILTIN_SKILLS` 用于在基线上追加额外 bundled skills（例如 `github` / `gh-issues` / `coding-agent`）

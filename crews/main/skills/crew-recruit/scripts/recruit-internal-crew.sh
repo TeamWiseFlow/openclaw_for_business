@@ -1,6 +1,6 @@
 #!/bin/bash
 # recruit-internal-crew.sh - 注册新内部 Crew 到 openclaw.json
-# 用法: bash ./skills/crew-recruit/scripts/recruit-internal-crew.sh <agent-id> [--template <id>] [--bind <channel>:<accountId>] [--note <text>]
+# 用法: ./skills/crew-recruit/scripts/recruit-internal-crew.sh <agent-id> [--template <id>] [--bind <channel>:<accountId>] [--note <text>]
 # 内部 Crew 特点：自动加入 Main Agent 的 allowAgents，使用继承模式技能
 set -e
 

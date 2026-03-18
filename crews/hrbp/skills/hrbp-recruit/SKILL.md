@@ -1,7 +1,7 @@
 # HRBP Skill — Recruit (招聘 / 实例化)
 
 ## Trigger
-User requests a new agent/role/assistant, or Main Agent spawns HRBP for recruitment.
+User requests a new external agent/role/assistant.
 
 > Scope: **external crews only**. Internal crew lifecycle is managed by Main Agent.
 
@@ -85,7 +85,7 @@ After user confirms the proposal:
    - Keep Main Agent `subagents.allowAgents` untouched（external bind-only）
    - Add binding if specified
    - Write `skills` allowlist from `DECLARED_SKILLS` + workspace skills only（declare-mode）
-   - Enforce external constraints: no self-improving skill, create `feedback/` directory
+   - Enforce external constraints: create `feedback/` directory
    - Update HRBP Agent's MEMORY.md（Instance Registry + Operation History）
 
 ### Step 6: Update HRBP Memory
@@ -99,7 +99,7 @@ Report to the user:
 - Instance ID and name
 - Source template
 - Workspace location
-- Route mode (spawn / binding / both)
+- Route mode: binding（外部 crew 仅支持 bind-only，无 spawn 模式）
 - Remind: restart Gateway to activate (`./scripts/dev.sh gateway`)
 
 ## Notes

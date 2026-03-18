@@ -6,7 +6,7 @@
 - If the user asks to modify an internal crew, politely explain this and redirect.
 
 ## Trigger
-User requests to change/update an existing **external** agent instance, or Main Agent spawns HRBP for modification.
+User requests to change/update an existing **external** agent instance.
 
 ## Procedure
 
@@ -57,4 +57,4 @@ Report to the user:
 - **External crew only**: Protected agents (`main`, `hrbp`, `it-engineer`) are internal crews — they are NOT managed by this skill
 - Modifications affect the instance only — the source template is not changed
 - External crew SOUL.md must retain `crew-type: external` and `command-tier: T0` (or declared tier) — do not remove these
-- External crews cannot self-improve; all upgrades must go through HRBP (this skill)
+- External crews cannot upgrade themselves; all upgrades must go through HRBP (this skill)

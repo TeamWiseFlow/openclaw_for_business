@@ -10,6 +10,16 @@
 | hrbp | HRBP | hrbp (built-in) | internal | spawn | — | active |
 | it-engineer | IT Engineer | it-engineer (built-in) | internal | both | feishu:it-engineer-bot | active |
 
+## Lifecycle Ownership Rule
+Main Agent owns the lifecycle management of all internal crew members except the protected built-ins:
+- `main`
+- `hrbp`
+- `it-engineer`
+
+This includes recruiting and dismissing non-protected internal members.
+This does not include improving / self-improving those members.
+Main Agent should not delegate these lifecycle tasks to other roles.
+
 ## External Crew Note
 External Crews are NOT listed here. They are managed by HRBP and recorded in HRBP's `EXTERNAL_CREW_REGISTRY.md`.
 External Crews are accessible ONLY via their bound channels, NOT via Main Agent routing.

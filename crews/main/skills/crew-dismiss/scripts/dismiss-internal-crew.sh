@@ -1,6 +1,6 @@
 #!/bin/bash
 # dismiss-internal-crew.sh - 下线内部 Crew（workspace 归档）
-# 用法: bash ./skills/crew-dismiss/scripts/dismiss-internal-crew.sh <agent-id>
+# 用法: ./skills/crew-dismiss/scripts/dismiss-internal-crew.sh <agent-id>
 set -e
 
 OPENCLAW_HOME="$HOME/.openclaw"

@@ -106,6 +106,17 @@ if [ -f "$CONFIG_PATH" ] && [ -f "$PROJECT_ROOT/config-templates/openclaw.json" 
       }
     }
 
+    // 同步 hooks.internal.entries 配置（确保 boot-md 等 hook 开关与模板一致）
+    if (template.hooks?.internal?.entries) {
+      if (!running.hooks) running.hooks = {};
+      if (!running.hooks.internal) running.hooks.internal = {};
+      if (!running.hooks.internal.entries) running.hooks.internal.entries = {};
+      for (const [name, entry] of Object.entries(template.hooks.internal.entries)) {
+        running.hooks.internal.entries[name] = entry;
+        changed = true;
+      }
+    }
+
     // 规范 Feishu 多账号配置：将顶层 single-account 字段下沉到 accounts.*
     // 避免启动时触发 Doctor 迁移提示：
     // \"Moved channels.feishu single-account top-level values into channels.feishu.accounts.default.\"

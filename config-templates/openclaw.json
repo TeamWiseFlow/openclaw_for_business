@@ -91,7 +91,8 @@
       },
       "maxConcurrent": 4,
       "subagents": {
-        "maxConcurrent": 8
+        "maxConcurrent": 8,
+        "maxSpawnDepth": 2
       }
     },
     "list": [
@@ -115,8 +116,6 @@
         ],
         "subagents": {
           "allowAgents": [
-            "main",
-            "hrbp",
             "it-engineer"
           ]
         },
@@ -145,6 +144,11 @@
           "xurl",
           "video-frames"
         ],
+        "subagents": {
+          "allowAgents": [
+            "it-engineer"
+          ]
+        },
         "tools": {
           "exec": {
             "host": "gateway",
@@ -226,7 +230,7 @@
       "enabled": true,
       "entries": {
         "boot-md": {
-          "enabled": true
+          "enabled": false
         },
         "command-logger": {
           "enabled": true

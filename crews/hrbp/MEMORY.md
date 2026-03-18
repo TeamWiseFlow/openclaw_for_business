@@ -24,7 +24,7 @@
 - 两种 Crew 类型：internal（对内，spawn+bind，继承技能）和 external（对外，bind-only，声明式技能）
 - HRBP 只管理 external crew，不管理 internal crew
 - External crew 实例化时必须创建 `DECLARED_SKILLS`（声明式技能）和 `feedback/`（用户反馈目录）
-- External crew 不能 self-improve，只能由 HRBP 发起升级
+- External crew 不能自主升级，只能由 HRBP 发起升级
 - `dmScope: per-channel-peer` 是全局配置，对所有 channel 生效（包括内部 crew）
 
 ### 关键路径

@@ -57,7 +57,6 @@ tmux
 weather
 xurl
 video-frames
-self-improving
 EOF
 }
 

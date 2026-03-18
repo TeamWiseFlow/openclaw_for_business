@@ -417,9 +417,14 @@ if [ -f "$CONFIG_PATH" ]; then
     };
 
     upsertAgent('main', (prev) => {
-      const allowAgents = Array.isArray(prev?.subagents?.allowAgents) ? prev.subagents.allowAgents : [];
-      const mergedAllowAgents = Array.from(new Set([...allowAgents, 'main', 'hrbp', 'it-engineer']));
-      const filteredAllowAgents = mergedAllowAgents.filter((id) => getCrewType(id) === 'internal');
+      // Main Agent 只能 spawn 它招募的非内置 internal agent + it-engineer（固定）
+      const BUILTIN_IDS = new Set(['main', 'hrbp', 'it-engineer']);
+      const prevAllowAgents = Array.isArray(prev?.subagents?.allowAgents) ? prev.subagents.allowAgents : [];
+      const filteredAllowAgents = prevAllowAgents.filter(
+        (id) => !BUILTIN_IDS.has(id) && getCrewType(id) === 'internal'
+      );
+      // it-engineer 固定追加：所有对内 crew 均可 spawn IT 协助执行任务
+      const allowAgents = [...new Set([...filteredAllowAgents, 'it-engineer'])];
       const base = {
         ...prev,
         id: 'main',
@@ -428,18 +433,23 @@ if [ -f "$CONFIG_PATH" ]; then
         workspace: prev.workspace || openclawHome + '/workspace-main',
         subagents: {
           ...(prev.subagents || {}),
-          allowAgents: filteredAllowAgents,
+          allowAgents: allowAgents,
         },
       };
       return applySkills(base, process.env.MAIN_SKILLS_RESULT);
     });
 
     upsertAgent('hrbp', (prev) => {
+      // hrbp 可 spawn it-engineer 协助执行运维类任务
       const base = {
         ...prev,
         id: 'hrbp',
         name: prev.name || 'HRBP',
         workspace: prev.workspace || openclawHome + '/workspace-hrbp',
+        subagents: {
+          ...(prev.subagents || {}),
+          allowAgents: ['it-engineer'],
+        },
       };
       return applySkills(base, process.env.HRBP_SKILLS_RESULT);
     });
@@ -453,6 +463,21 @@ if [ -f "$CONFIG_PATH" ]; then
       };
       return applySkills(base, process.env.IT_SKILLS_RESULT);
     });
+
+    // 为所有其他对内 Crew 实例也追加 it-engineer spawn 权限
+    // （它们在 depth=1 时需要 maxSpawnDepth>=2，由 agents.defaults.subagents.maxSpawnDepth 保证）
+    const PROTECTED_IDS = new Set(['main', 'hrbp', 'it-engineer']);
+    for (const agent of c.agents.list) {
+      if (PROTECTED_IDS.has(agent.id)) continue;
+      if (getCrewType(agent.id) !== 'internal') continue;
+      const prevAllow = Array.isArray(agent.subagents?.allowAgents) ? agent.subagents.allowAgents : [];
+      if (!prevAllow.includes('it-engineer')) {
+        agent.subagents = {
+          ...(agent.subagents || {}),
+          allowAgents: [...new Set([...prevAllow, 'it-engineer'])],
+        };
+      }
+    }
 
     // 配置飞书多账户 -> Agent 绑定（模式 B：渠道直连）
     if (!Array.isArray(c.bindings) || c.bindings.length === 0) {

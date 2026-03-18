@@ -520,7 +520,7 @@ v2 的 crews 系统将所有 crew 混同管理（HRBP 统一管理所有 crew）
 
 | 类型 | 代表 | 技能模式 | 路由 | 生命周期 | 升级 |
 |------|------|---------|------|---------|------|
-| internal | main/hrbp/it-engineer | inherit（继承） | spawn+bind | Main Agent | self-improve |
+| internal | main/hrbp/it-engineer | inherit（继承） | spawn+bind | Main Agent | 管理者发起 |
 | external | customer-service | declare（声明式） | bind-only | HRBP | HRBP 主导 |
 
 ### 3.2 目录结构变更
@@ -548,7 +548,7 @@ v2 的 crews 系统将所有 crew 混同管理（HRBP 统一管理所有 crew）
 | 对内 crew recruit/dismiss | HRBP | **Main Agent**（crew-recruit/crew-dismiss 技能） |
 | 对外 crew recruit/dismiss | HRBP | HRBP（hrbp-recruit/hrbp-remove 技能）|
 | 对外 crew upgrade | — | HRBP（hrbp-feedback-review + upgrade flow）|
-| 对外 crew self-improve | HRBP 管理 | **禁止**，HRBP 主导升级 |
+| 对外 crew 升级 | HRBP 管理 | HRBP 主导升级 |
 
 ### 3.4 Main Agent 权限升级
 

@@ -22,7 +22,7 @@
 ## 脚本用法
 
 ```bash
-bash ./skills/crew-dismiss/scripts/dismiss-internal-crew.sh <agent-id>
+./skills/crew-dismiss/scripts/dismiss-internal-crew.sh <agent-id>
 ```
 
 ## 保护名单

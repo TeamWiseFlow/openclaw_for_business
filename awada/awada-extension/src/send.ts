@@ -1,6 +1,12 @@
 import { randomUUID } from "crypto";
 import { getPublisherClient } from "./redis-client.js";
-import type { OutboundEvent, OutboundTarget } from "./redis-types.js";
+import type {
+  ContentObject,
+  FileObject,
+  ImageObject,
+  OutboundEvent,
+  OutboundTarget,
+} from "./redis-types.js";
 
 const OUTBOUND_STREAM_PREFIX = "awada:events:outbound:";
 
@@ -72,4 +78,54 @@ export async function sendTextToAwada(params: {
     payload: [{ type: "text", text }],
   };
   return publishOutboundEvent(redisUrl, event);
+}
+
+/**
+ * Send a media item (file, image, or audio) to the awada outbound stream.
+ */
+export async function sendMediaToAwada(params: {
+  redisUrl: string;
+  target: OutboundTarget;
+  media: ContentObject;
+  replyToEventId: string;
+  correlationId: string;
+  traceId: string;
+}): Promise<string> {
+  const { redisUrl, target, media, replyToEventId, correlationId, traceId } = params;
+  const event: OutboundEvent = {
+    schema_version: 1,
+    event_id: randomUUID(),
+    reply_to_event_id: replyToEventId || randomUUID(),
+    type: "REPLY_MESSAGE",
+    timestamp: Math.floor(Date.now() / 1000),
+    correlation_id: correlationId || randomUUID(),
+    trace_id: traceId || randomUUID(),
+    target,
+    payload: [media],
+  };
+  return publishOutboundEvent(redisUrl, event);
+}
+
+const IMAGE_EXTENSIONS = new Set([
+  ".jpg",
+  ".jpeg",
+  ".png",
+  ".gif",
+  ".webp",
+  ".bmp",
+  ".svg",
+]);
+
+/**
+ * Build a ContentObject from a media URL, guessing type from the extension.
+ * Image extensions → ImageObject; everything else → FileObject.
+ */
+export function buildMediaContentFromUrl(url: string): ImageObject | FileObject {
+  const pathname = new URL(url).pathname.toLowerCase();
+  const ext = pathname.slice(pathname.lastIndexOf("."));
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    return { type: "image", file_url: url };
+  }
+  const fileName = pathname.split("/").pop() || undefined;
+  return { type: "file", file_url: url, file_name: fileName };
 }

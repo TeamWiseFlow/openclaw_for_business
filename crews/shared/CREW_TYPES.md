@@ -13,11 +13,11 @@
 | 属性 | 规范 |
 |------|------|
 | 声明方式 | SOUL.md 中 `crew-type: internal` |
-| 技能继承 | 自动继承基线技能（含 self-improving）；项目/addon 全局技能需在 `BUILTIN_SKILLS` 显式声明 |
+| 技能继承 | 自动继承基线技能；项目/addon 全局技能需在 `BUILTIN_SKILLS` 显式声明 |
 | 命令权限 | 按 SOUL.md 中的 command-tier 声明（T1/T2/T3） |
 | 路由模式 | spawn + bind 双模式均可 |
 | 生命周期管理 | 由 Main Agent 管理（通过专属技能脚本） |
-| 升级方式 | 各 Crew 通过 self-improve 技能自主升级 |
+| 升级方式 | 由管理者（人类用户或 Main Agent）发起 |
 | TEAM_DIRECTORY | 记录在 `~/.openclaw/crew_templates/TEAM_DIRECTORY.md`，所有对内 Crew 可读 |
 | 模板目录 | `~/.openclaw/crew_templates/`，仅 Main Agent 可访问 |
 
@@ -39,7 +39,7 @@
 | 命令权限 | 默认 T0（禁止所有 shell 命令），可通过白名单声明额外权限 |
 | 路由模式 | **仅支持 bind 模式**，禁止 Main Agent 通过 spawn 路由 |
 | 生命周期管理 | 由 HRBP 管理，注册信息记录在 `EXTERNAL_CREW_REGISTRY.md` |
-| 升级方式 | **禁止 self-improve**，只能由 HRBP 主导升级 |
+| 升级方式 | 只能由 HRBP 主导升级 |
 | 会话隔离 | `dmScope: per-channel-peer`（全局设置，每个外部用户独立 session） |
 | 反馈收集 | 用户不满意时必须记录到 workspace 的 `feedback/` 目录 |
 | 模板目录 | `~/.openclaw/hrbp_templates/`，仅 HRBP 可访问 |
@@ -62,7 +62,7 @@ nano-pdf
 xurl
 ```
 
-**注意**：不声明 `self-improving` 技能，这是对外 Crew 的核心约束之一。
+**注意**：对外 Crew 技能列表由 HRBP 管理，技能变更需经 HRBP 审核。
 
 ---
 

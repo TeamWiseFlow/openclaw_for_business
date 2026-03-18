@@ -16,7 +16,7 @@
 ## 脚本说明
 
 ```bash
-bash ./skills/crew-list/scripts/list-internal-crews.sh
+./skills/crew-list/scripts/list-internal-crews.sh
 ```
 
 ## 示例输出

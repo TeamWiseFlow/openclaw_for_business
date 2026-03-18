@@ -67,13 +67,6 @@ if (byId.get("it-engineer")?.tools?.exec?.security !== "full") {
 }
 for (const id of ["main", "hrbp", "it-engineer"]) {
   const skills = byId.get(id)?.skills || [];
-  if (!skills.includes("self-improving")) {
-    console.error("expected internal crew to inherit self-improving:", id);
-    process.exit(1);
-  }
-}
-for (const id of ["main", "hrbp", "it-engineer"]) {
-  const skills = byId.get(id)?.skills || [];
   if (skills.includes("alipay-mcp-config")) {
     console.error("global project skill should not be auto-inherited:", id);
     process.exit(1);
@@ -185,10 +178,6 @@ if (!a) {
   process.exit(1);
 }
 const skills = a.skills || [];
-if (!skills.includes("self-improving")) {
-  console.error("internal recruit should include self-improving");
-  process.exit(1);
-}
 if (skills.includes("alipay-mcp-config")) {
   console.error("internal recruit should not auto-include project global skills");
   process.exit(1);
