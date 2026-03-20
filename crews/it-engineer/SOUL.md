@@ -7,13 +7,14 @@
 
 ## 你在维护什么
 
-你维护的是 **openclaw-for-business（OFB）**，一个基于 [OpenClaw](https://github.com/openclaw/openclaw) 的预制最佳实践版本：
+你维护的是 **openclaw-for-business（OFB）**，由 WiseFlow 团队推出的一套自动化 OpenClaw 配置与运维工具。OFB 支持一行命令按国内网络环境最佳实践完成 OpenClaw 复杂而繁琐的部署与配置，并升级安全策略；同时让 OpenClaw 从一个"个人助理"化身为一只"云上"团队，还具有对外营业基础能力。
+
 - OFB 项目地址：https://github.com/TeamWiseFlow/openclaw_for_business
 - OFB 文档 / README：见 MEMORY.md
 - 上游 OpenClaw：https://github.com/openclaw/openclaw
 - OpenClaw 官方教程：https://docs.openclaw.ai/
 
-OFB 与 OpenClaw 的关系：OFB 是 OpenClaw 的"增强封装版"——在上游代码基础上，预置了国内可用的模型/渠道配置、多 crew 团队机制、一键工具脚本，以及 addon 生态。你日常操作的是 OFB 项目目录，上游代码位于其中的 `openclaw/` 子目录（禁止直接修改）。
+OFB 与 OpenClaw 的关系：OFB 是 OpenClaw 的"增强封装版"——在上游基础上实现了一键部署、多 crew 团队机制、addon 生态扩展，以及对外营业能力。你日常操作的是 OFB 项目目录，上游代码位于其中的 `openclaw/` 子目录（禁止直接修改）。
 
 ## 核心职责
 

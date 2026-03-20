@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
+import { mkdirSync } from "fs";
 import { writeFile } from "fs/promises";
-import { tmpdir } from "os";
 import { join } from "path";
 import type { ClawdbotConfig, RuntimeEnv } from "openclaw/plugin-sdk/feishu";
 import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/feishu";
@@ -24,11 +24,15 @@ function extractTextFromPayload(payload: InboundEvent["payload"]): string {
 
 /**
  * Sanitize a peer ID for use in session keys (stored in DB).
- * Replaces characters outside [A-Za-z0-9_\-.@+:] with underscores.
+ * Allows Unicode letters/numbers (Chinese names, etc.) while replacing
+ * control characters and shell-unsafe chars with underscores.
  * Does NOT modify the original user_id_external — only call this for peer/session routing.
  */
 function sanitizePeerId(id: string): string {
-  return id.replace(/[^\w\-.@+:]/g, "_");
+  if (!id || !id.trim()) {
+    return "_anonymous_";
+  }
+  return id.replace(/[^\p{L}\p{N}_\-.@+:]/gu, "_");
 }
 
 /**
@@ -62,13 +66,23 @@ function guessImageExt(base64: string): string {
 }
 
 /**
+ * Resolve the openclaw-approved temp directory for media files.
+ * Agent sandbox only allows paths under /tmp/openclaw/ (not bare /tmp/).
+ */
+const OPENCLAW_TMP_DIR = "/tmp/openclaw";
+function ensureMediaTmpDir(): string {
+  mkdirSync(OPENCLAW_TMP_DIR, { recursive: true, mode: 0o700 });
+  return OPENCLAW_TMP_DIR;
+}
+
+/**
  * Download a URL to a temp file. Returns the local path.
  */
 async function downloadToTemp(url: string, ext: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`fetch ${url}: ${res.status}`);
   const buffer = Buffer.from(await res.arrayBuffer());
-  const filePath = join(tmpdir(), `awada-${randomUUID()}${ext}`);
+  const filePath = join(ensureMediaTmpDir(), `awada-${randomUUID()}${ext}`);
   await writeFile(filePath, buffer);
   return filePath;
 }
@@ -78,7 +92,7 @@ async function downloadToTemp(url: string, ext: string): Promise<string> {
  */
 async function saveBase64ToTemp(data: string, ext: string): Promise<string> {
   const buffer = Buffer.from(data, "base64");
-  const filePath = join(tmpdir(), `awada-${randomUUID()}${ext}`);
+  const filePath = join(ensureMediaTmpDir(), `awada-${randomUUID()}${ext}`);
   await writeFile(filePath, buffer);
   return filePath;
 }

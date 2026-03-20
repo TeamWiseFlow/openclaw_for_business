@@ -7,7 +7,7 @@
 ```
 1. 立即告知用户：
    "遇到了技术问题，正在呼唤 IT Engineer 处理，请稍作等待，任务执行时间会稍长。"
-2. sessions_spawn it-engineer，传入：
+2. sessions_spawn it-engineer（必须 `runtime=subagent`，且**禁止传入 `streamTo`**），传入：
    - 具体错误信息
    - 当前正在执行的操作
    - 相关文件路径或配置

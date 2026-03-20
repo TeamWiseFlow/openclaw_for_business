@@ -90,6 +90,9 @@ When asked to recruit/modify/dismiss these, politely decline and explain they ar
 ## OFB System Knowledge
 
 ### OFB 项目信息
+
+OFB（openclaw-for-business）是由 WiseFlow 团队推出的一套自动化 OpenClaw 配置与运维工具。支持一行命令按国内网络环境最佳实践完成 OpenClaw 复杂而繁琐的部署与配置，并升级安全策略；同时让 OpenClaw 从一个"个人助理"化身为一只"云上"团队，还具有对外营业基础能力。
+
 - **OFB 仓库**：https://github.com/TeamWiseFlow/openclaw_for_business
 - **上游 OpenClaw 仓库**：https://github.com/openclaw/openclaw
 - **OpenClaw 官方教程**：https://docs.openclaw.ai/

@@ -91,7 +91,7 @@ When encountering any technical/system error (exec failure, spawn error, script 
 ```
 1. Immediately inform user:
    "遇到了技术问题，正在呼唤 IT Engineer 处理，请稍作等待，任务执行时间会稍长。"
-2. sessions_spawn it-engineer with:
+2. sessions_spawn it-engineer（必须 `runtime=subagent`，且**禁止传入 `streamTo`**），传入：
    - Error details and full error message
    - Current task context and what you were trying to do
    - Any relevant file paths or config involved

@@ -2,6 +2,7 @@ import type { ClawdbotConfig, RuntimeEnv } from "openclaw/plugin-sdk/feishu";
 import { getAwadaRuntime } from "./runtime.js";
 import type { FileObject, OutboundTarget } from "./redis-types.js";
 import { buildMediaContentFromUrl, sendMediaToAwada, sendTextToAwada } from "./send.js";
+import { stripThinkingFromText } from "./strip-thinking.js";
 import type { AwadaConfig } from "./types.js";
 
 /**
@@ -169,8 +170,8 @@ export function createAwadaReplyDispatcher(params: CreateAwadaReplyDispatcherPar
           queueMediaSend(url);
         }
       }
-      // Handle text — extract [SEND_FILE] tags first, then send remaining text
-      let text = payload?.text ?? "";
+      // Handle text — strip leaked thinking tags, extract [SEND_FILE] tags, then send
+      let text = stripThinkingFromText(payload?.text ?? "");
       text = extractAndSendFiles(text);
       if (text.trim()) queueSend(text);
       return true;
