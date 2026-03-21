@@ -23,6 +23,8 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OPENCLAW_DIR="$PROJECT_ROOT/openclaw"
 VERSION_FILE="$PROJECT_ROOT/openclaw.version"
 FORCE=false
+SKIP_ADDONS=false
+SKIP_CREW=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -30,10 +32,20 @@ while [ $# -gt 0 ]; do
       FORCE=true
       shift
       ;;
+    --skip-addons)
+      SKIP_ADDONS=true
+      shift
+      ;;
+    --skip-crew)
+      SKIP_CREW=true
+      shift
+      ;;
     *)
       echo "❌ Unknown option: $1"
-      echo "Usage: $0 [--force]"
-      echo "  --force  Overwrite existing workspace files (including MEMORY.md)"
+      echo "Usage: $0 [--force] [--skip-addons] [--skip-crew]"
+      echo "  --force        Overwrite existing workspace files (including MEMORY.md)"
+      echo "  --skip-addons  Skip apply-addons.sh and setup-crew.sh entirely"
+      echo "  --skip-crew    Run apply-addons.sh but skip setup-crew.sh"
       exit 1
       ;;
   esac
@@ -140,11 +152,14 @@ fi
 echo ""
 
 # ─── 5. 重新应用 addons + 同步配置（apply-addons.sh 末尾会调 setup-crew.sh）
-echo "🔄 Applying addons and syncing config..."
-if [ "$FORCE" = "true" ]; then
-  "$PROJECT_ROOT/scripts/apply-addons.sh" --force
+if [ "$SKIP_ADDONS" = "true" ]; then
+  echo "⏭️  Skipping apply-addons and setup-crew (--skip-addons)"
 else
-  "$PROJECT_ROOT/scripts/apply-addons.sh"
+  echo "🔄 Applying addons and syncing config..."
+  ADDON_ARGS=()
+  [ "$FORCE" = "true" ] && ADDON_ARGS+=(--force)
+  [ "$SKIP_CREW" = "true" ] && ADDON_ARGS+=(--skip-crew)
+  "$PROJECT_ROOT/scripts/apply-addons.sh" "${ADDON_ARGS[@]}"
 fi
 
 echo ""

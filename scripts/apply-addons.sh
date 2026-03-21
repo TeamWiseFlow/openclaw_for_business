@@ -36,6 +36,7 @@ CONFIG_PATH="$OPENCLAW_HOME/openclaw.json"
 HRBP_ADD_AGENT_SCRIPT="$PROJECT_ROOT/crews/hrbp/skills/hrbp-recruit/scripts/add-agent.sh"
 GLOBAL_SHARED_SKILLS_FILE="$OPENCLAW_HOME/GLOBAL_SHARED_SKILLS"
 FORCE=false
+SKIP_CREW=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -43,9 +44,13 @@ while [ $# -gt 0 ]; do
       FORCE=true
       shift
       ;;
+    --skip-crew)
+      SKIP_CREW=true
+      shift
+      ;;
     *)
       echo "❌ Unknown option: $1"
-      echo "Usage: $0 [--force]"
+      echo "Usage: $0 [--force] [--skip-crew]"
       exit 1
       ;;
   esac
@@ -430,8 +435,10 @@ printf '%s\n' "$GLOBAL_SHARED_SKILLS_RAW" \
 GLOBAL_SHARED_COUNT="$(wc -l < "$GLOBAL_SHARED_SKILLS_FILE" | tr -d ' ')"
 echo "🧾 Global shared skills catalog updated ($GLOBAL_SHARED_COUNT)"
 
-# ─── 重新同步 agents.list[].skills（纳入最��全局 skills）──────────
-if [ -f "$CONFIG_PATH" ] && [ -x "$PROJECT_ROOT/scripts/setup-crew.sh" ]; then
+# ─── 重新同步 agents.list[].skills（纳入最新全局 skills）──────────
+if [ "$SKIP_CREW" = "true" ]; then
+  echo "⏭️  Skipping setup-crew.sh (--skip-crew)"
+elif [ -f "$CONFIG_PATH" ] && [ -x "$PROJECT_ROOT/scripts/setup-crew.sh" ]; then
   if [ "$FORCE" = "true" ]; then
     CALLED_FROM_APPLY_ADDONS=true "$PROJECT_ROOT/scripts/setup-crew.sh" --force
   else
