@@ -37,7 +37,40 @@ OFB 项目设置了一套简洁明了的机制：
   以上三个内置 crew 我们都已经提供了现成的最佳配置（角色定义文件、SKills、权限等）
 
 - 对外 crew，我们会不断推出官方模板，并且后面会引入 marketplace（addon 市场）机制，要启用哪个，你直接让你的 hrbp 去操作，当然你也可以让它帮你创建
-  - 目前官方内置了一个 customer service 的对外 crew 模板
+
+内置 crew 模板：
+- sales customer service （销售导向客服）
+- …… 不断增加中
+
+### Crew 之间的自主协作
+  
+  我们巧妙的利用了 OpenClaw 的 Spawn Subagent 机制实现了 crew 之间的自主互助能力：
+
+  目前已经默认启用： 所有对内 Crew（internal）都配置了 subagents.allowAgents: ["it-engineer"]，这意味着：
+
+  当任何对内 Agent 遇到技术问题时：
+  ```text
+  1. ❌ 不会停止工作
+  2. ❌ 不会喊用户帮忙 （这很傻，不是吗？）
+  3. ✅ 自主调用 IT Engineer 排查
+  4. ✅ 问题解决后继续原任务
+  ```
+
+  工作流程：
+
+  假设新媒体运营 Agent（media-operator）正在处理内容发布任务，突然遇到 API 调用失败：
+  ```text
+  [media-operator] 正在发布文章到微信公众号...
+  [media-operator] 发现错误：access_token expired
+  [media-operator] 判断：这是技术问题，调用 IT Engineer
+    └── [it-engineer] 收到协助请求：access_token 过期
+    └── [it-engineer] 分析原因：token 刷新机制异常
+    └── [it-engineer] 执行修复：重新配置 token 刷新
+    └── [it-engineer] 返回结果：问题已解决
+  [media-operator] 收到解决方案，继续发布文章
+  [media-operator] 任务完成
+  ```
+  用户视角：整个过程用户无感知，Agent 自主完成了问题排查和修复。
 
 ### 精简 + 增益内置skill
 
