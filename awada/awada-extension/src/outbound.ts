@@ -5,6 +5,8 @@ import { getAwadaRuntime } from "./runtime.js";
 import { decodeAwadaTo, sendTextToAwada } from "./send.js";
 import type { AwadaConfig } from "./types.js";
 
+import { isNoReplyText } from "./silent-reply.js";
+
 /**
  * Split text by perMsgMaxLen if configured, then send each chunk.
  * Returns the stream ID of the last sent chunk (for delivery tracking).
@@ -43,6 +45,9 @@ export const awadaOutbound: ChannelOutboundAdapter = {
   chunkerMode: "markdown",
   textChunkLimit: 2000,
   sendText: async ({ cfg, to, text, accountId }) => {
+    if (isNoReplyText(text)) {
+      return { channel: "awada", messageId: "no_reply_suppressed" };
+    }
     const target = decodeAwadaTo(to);
     if (!target) {
       throw new Error(`[awada] Cannot decode target: ${to}`);
