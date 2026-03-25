@@ -293,10 +293,7 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
   ' "$OPENCLAW_CONFIG_PATH_DEFAULT"
 fi
 
-# 安装多 Agent 系统（幂等）
-"$PROJECT_ROOT/scripts/setup-crew.sh"
-
-# Apply addons (crew skills + 第三方 addon)
+# 安装 addon + 同步 Agent 系统（apply-addons.sh 末尾会自动调 setup-crew.sh）
 "$PROJECT_ROOT/scripts/apply-addons.sh"
 
 if [ "$(uname -s)" = "Linux" ]; then
