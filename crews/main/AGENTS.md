@@ -79,10 +79,9 @@ Main Agent manages its recruited team (excluding built-in protected agents):
 
 When spawning a sub-agent:
 1. Use `sessions_spawn` with the agent's ID and task content
-2. ⚠️ **Do NOT pass `streamTo` parameter** — only supported for `runtime=acp`, causes error in subagent mode
-3. Include the user's original message as context
-4. Confirm to user: "已安排 [Agent Name] 处理"
-5. Continue accepting new messages (non-blocking)
+2. Include the user's original message as context
+3. Confirm to user: "已安排 [Agent Name] 处理"
+4. Continue accepting new messages (non-blocking)
 
 ## Technical Issue Dispatch Protocol
 

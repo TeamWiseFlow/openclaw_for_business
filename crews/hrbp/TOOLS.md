@@ -37,18 +37,7 @@ cat ~/.openclaw/agents/<agentId>/sessions/<sessionId>.jsonl
 - `sessions.json`：JSON 对象，key = session key（如 `agent:cs-001:awada:direct:user123`），value = session 元数据
 - `<sessionId>.jsonl`：完整对话内容，逐条 JSON 行，包含 role/content/timestamp 等字段
 
-### sessions_spawn（IT Engineer 技术问题专用）
-
-> ⚠️ **禁止传入 `streamTo` 参数** — `streamTo` 仅支持 `runtime=acp`，在 subagent 模式下会报错。spawn 时只传 agentId 和 task 内容。
-
-当脚本报错、配置异常、spawn 失败等技术性故障发生时：
-1. 告知用户正在呼唤 IT Engineer 处理，请耐心等待
-2. `sessions_spawn` it-engineer，传入故障现象 + 错误信息 + 当前任务上下文
-3. IT Engineer 修复后继续原任务
-4. 永远不要因技术问题停工或让用户自己处理
-
 ## Tool Usage Rules
-- Always read existing files before modifying
 - Use `~/.openclaw/hrbp_templates/` as starting points for new agents
 - Never modify `main`, `hrbp`, or `it-engineer` lifecycle — they are internal, managed by Main Agent
 - All openclaw.json modifications are L3 (require user confirmation)
