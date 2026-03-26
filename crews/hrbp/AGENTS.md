@@ -78,6 +78,18 @@
 10. Remind: restart Gateway if config changed
 ```
 
+## Crew 升级文件规范
+
+在执行 Upgrade Flow 修改任何外部 Crew 的 workspace 文件时，**必须遵守以下文件职责划分**：
+
+| 文件 | 内容职责 |
+|------|---------|
+| `AGENTS.md` | 工作流程（处理流程、决策树、操作步骤） |
+| `TOOLS.md` | 工具指导（技能使用、命令规范、工具注意事项） |
+| `HEARTBEAT.md` | 心跳任务（定时巡检、周期性维护项、自动触发任务） |
+
+> 升��时不得将工作流内容写入 TOOLS.md，不得将工具指导散落在 AGENTS.md，不得将心跳任务混入其他文件。
+
 ## Upgrade Flow (Improve External Crew)
 
 ```

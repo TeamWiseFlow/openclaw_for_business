@@ -43,6 +43,18 @@
 - Do NOT tell users to contact IT Engineer themselves
 - You spawn IT Engineer as a subagent, wait for the fix, then resume the original task
 
+## Crew 升级文件规范
+
+在协助任何 Crew（Agent）修改或升级其 workspace 文件时，**必须遵守以下文件职责划分**：
+
+| 文件 | 内容职责 |
+|------|---------|
+| `AGENTS.md` | 工作流程（处理流程、决策树、操作步骤） |
+| `TOOLS.md` | 工具指导（技能使用、命令规范、工具注意事项） |
+| `HEARTBEAT.md` | 心跳任务（定时巡检、周期性维护项、自动触发任务） |
+
+> 升级时不得将工作流内容写入 TOOLS.md，不得将工具指导散落在 AGENTS.md，不得将心跳任务混入其他文件。
+
 ## Internal Crew Lifecycle
 
 Main Agent manages its recruited team (excluding built-in protected agents):

@@ -71,7 +71,6 @@
   },
   "agents": {
     "defaults": {
-      "thinkingDefault": "medium",
       "model": {
         "primary": "siliconflow/Pro/zai-org/GLM-5",
         "fallbacks": [
@@ -82,9 +81,15 @@
         "primary": "siliconflow/Pro/moonshotai/Kimi-K2.5"
       },
       "models": {
-        "siliconflow/Pro/zai-org/GLM-5": { "alias": "default" },
-        "siliconflow/Pro/MiniMaxAI/MiniMax-M2.5": { "alias": "minimax" },
-        "siliconflow/Pro/moonshotai/Kimi-K2.5": { "alias": "kimi" }
+        "siliconflow/Pro/zai-org/GLM-5": {
+          "alias": "default"
+        },
+        "siliconflow/Pro/MiniMaxAI/MiniMax-M2.5": {
+          "alias": "minimax"
+        },
+        "siliconflow/Pro/moonshotai/Kimi-K2.5": {
+          "alias": "kimi"
+        }
       },
       "compaction": {
         "mode": "safeguard"
@@ -125,7 +130,9 @@
             "security": "allowlist",
             "ask": "off"
           }
-        }
+        },
+        "thinkingDefault": "high",
+        "reasoningDefault": "on"
       },
       {
         "id": "hrbp",
@@ -155,7 +162,9 @@
             "security": "full",
             "ask": "off"
           }
-        }
+        },
+        "thinkingDefault": "high",
+        "reasoningDefault": "on"
       },
       {
         "id": "it-engineer",
@@ -183,7 +192,9 @@
             "security": "full",
             "ask": "off"
           }
-        }
+        },
+        "thinkingDefault": "high",
+        "reasoningDefault": "on"
       }
     ]
   },
