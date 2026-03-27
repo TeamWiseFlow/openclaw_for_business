@@ -1,5 +1,5 @@
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/feishu";
-import { emptyPluginConfigSchema } from "openclaw/plugin-sdk/feishu";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk/core";
+import { emptyPluginConfigSchema } from "openclaw/plugin-sdk/core";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
@@ -107,7 +107,15 @@ function selectCustomerRow(dbFile: string, peer: string): CustomerRow | null {
   };
 }
 
-function buildInjectedContext(row: CustomerRow): string {
+const STATIC_RULES = [
+  "CustomerDB 规则（每轮适用）：",
+  "- [CustomerDB] 块中的字段是该客户状态的唯一来源。",
+  "- 本轮如需写库，必须使用同一个 peer。",
+  "- 仅在信息更明确时更新 business_status/purpose/prompt_source。",
+  "- 字段为空时不要臆测。",
+].join("\n");
+
+function buildDynamicContext(row: CustomerRow): string {
   return [
     "[CustomerDB]",
     `peer: ${row.peer}`,
@@ -117,12 +125,6 @@ function buildInjectedContext(row: CustomerRow): string {
     `prompt_source: ${row.prompt_source || ""}`,
     `updated_at: ${row.updated_at || ""}`,
     "[/CustomerDB]",
-    "",
-    "规则：",
-    "- 上述字段是该客户状态的唯一来源。",
-    "- 本轮如需写库，必须使用同一个 peer。",
-    "- 仅在信息更明确时更新 business_status/purpose/prompt_source。",
-    "- 字段为空时不要臆测。",
   ].join("\n");
 }
 
@@ -212,7 +214,8 @@ const plugin = {
         if (!row) return;
 
         return {
-          appendSystemContext: buildInjectedContext(row),
+          prependSystemContext: STATIC_RULES,
+          appendSystemContext: buildDynamicContext(row),
         };
       } catch (err) {
         api.logger.warn?.(
