@@ -117,6 +117,31 @@ const IMAGE_EXTENSIONS = new Set([
 ]);
 
 /**
+ * Build a ContentObject from a file_name (and optional file_id), for pre-stored
+ * WeChat cloud files. Type is determined by extension: image extensions → ImageObject,
+ * everything else → FileObject.
+ */
+export function buildMediaContentFromName(params: {
+  file_name: string;
+  file_id?: string;
+}): ImageObject | FileObject {
+  const { file_name, file_id } = params;
+  const ext = file_name.slice(file_name.lastIndexOf(".")).toLowerCase();
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    return {
+      type: "image",
+      file_name,
+      ...(file_id ? { file_id } : {}),
+    };
+  }
+  return {
+    type: "file",
+    file_name,
+    ...(file_id ? { file_id } : {}),
+  };
+}
+
+/**
  * Build a ContentObject from a media URL, guessing type from the extension.
  * Image extensions → ImageObject; everything else → FileObject.
  */

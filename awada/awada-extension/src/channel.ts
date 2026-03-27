@@ -33,7 +33,7 @@ export const awadaPlugin: ChannelPlugin<ResolvedAwadaAccount> = {
     chatTypes: ["direct"],
     polls: false,
     threads: false,
-    media: false,
+    media: true,
     reactions: false,
     edit: false,
     reply: false,

@@ -16,6 +16,7 @@ export interface ImageObject {
   file_path?: string;
   file_url?: string;
   file_id?: string;
+  file_name?: string;
   base64?: string;
 }
 
