@@ -13,11 +13,9 @@ export interface TextObject {
 
 export interface ImageObject {
   type: "image";
-  file_path?: string;
+  file_name: string;
   file_url?: string;
   file_id?: string;
-  file_name?: string;
-  base64?: string;
 }
 
 export interface AudioObject {
@@ -29,9 +27,8 @@ export interface AudioObject {
 
 export interface FileObject {
   type: "file";
-  file_path?: string;
+  file_name: string;
   file_url?: string;
-  file_name?: string;
   file_id?: string;
 }
 

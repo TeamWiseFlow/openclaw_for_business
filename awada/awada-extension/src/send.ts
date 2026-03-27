@@ -142,15 +142,17 @@ export function buildMediaContentFromName(params: {
 }
 
 /**
- * Build a ContentObject from a media URL, guessing type from the extension.
- * Image extensions → ImageObject; everything else → FileObject.
+ * Build a ContentObject from a URL.
+ * file_name is extracted from the URL path; file_url is set to the URL.
+ * Type is determined by extension: image extensions → ImageObject, everything else → FileObject.
  */
 export function buildMediaContentFromUrl(url: string): ImageObject | FileObject {
-  const pathname = new URL(url).pathname.toLowerCase();
-  const ext = pathname.slice(pathname.lastIndexOf("."));
+  const pathname = new URL(url).pathname;
+  const raw = pathname.split("/").pop() ?? "";
+  const file_name = raw || "file";
+  const ext = file_name.slice(file_name.lastIndexOf(".")).toLowerCase();
   if (IMAGE_EXTENSIONS.has(ext)) {
-    return { type: "image", file_url: url };
+    return { type: "image", file_name, file_url: url };
   }
-  const fileName = pathname.split("/").pop() || undefined;
-  return { type: "file", file_url: url, file_name: fileName };
+  return { type: "file", file_name, file_url: url };
 }
