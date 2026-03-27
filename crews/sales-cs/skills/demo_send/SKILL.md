@@ -19,15 +19,6 @@ description: >
 message(action="sendAttachment", file_name="<文件名>")
 ```
 
-**可用文件**：
-- `wiseflow_pro_cn_hd_speech.mp4` — wiseflow4x-pro 演示视频
-- `wiseflow5x.mp4` — wiseflow5x / ofb 演示视频
-
-**示例**：
-```
-message(action="sendAttachment", file_name="wiseflow_pro_cn_hd_speech.mp4")
-```
-
 ## 完整发送流程
 
 1. 先用普通文字回复发送介绍语（如"我先发您一份 demo 视频供参考。"）

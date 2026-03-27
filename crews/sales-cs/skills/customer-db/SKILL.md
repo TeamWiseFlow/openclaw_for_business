@@ -18,22 +18,7 @@ description: >
 
 ---
 
-## 一、启动或对话开始时先确保数据库可用
-
-每次对话开始，先执行：
-
-```bash
-bash ./skills/customer-db/scripts/db.sh ensure
-```
-
-该命令会：
-1. 检查 `db/customer.db` 是否存在
-2. 检查 `cs_record` 表是否存在
-3. 若数据库未初始化，则自动按 `db/schema.sql` 初始化
-
----
-
-## 二、按 peer 查询当前客户记录
+## 一、 按 peer 查询客户状态
 
 当前系统已启用 `dmScope: per-channel-peer`，因此你必须把**当前 peer**视为客户唯一键。
 
@@ -51,7 +36,7 @@ bash ./skills/customer-db/scripts/db.sh sql "SELECT peer, business_status, purpo
 
 ---
 
-## 三、没有记录时插入默认值
+## 二、没有记录时插入默认值
 
 如果查询结果为空，则插入：
 
@@ -66,7 +51,7 @@ bash ./skills/customer-db/scripts/db.sh sql "INSERT INTO cs_record (peer, busine
 
 ---
 
-## 四、字段含义
+## 三、字段含义
 
 ### peer
 客户唯一标识，对应 per-channel-peer 会话键。
@@ -107,7 +92,7 @@ bash ./skills/customer-db/scripts/db.sh sql "INSERT INTO cs_record (peer, busine
 
 ---
 
-## 五、每轮对话结束时更新记录
+## 四、【重要】每轮对话结束时更新记录
 
 每轮结束前，根据本轮对话进展更新：
 - `business_status`
@@ -131,23 +116,7 @@ bash ./skills/customer-db/scripts/db.sh sql "UPDATE cs_record SET business_statu
 
 ---
 
-## 六、常见使用模式
-
-### 对话开头
-1. `ensure`
-2. `SELECT ... WHERE peer = '<peer>'`
-3. 若无记录则 `INSERT`
-
-### 对话中
-- 根据意图分流处理
-- 必要时参考数据库中的 `business_status` 判断下一步策略
-
-### 对话结尾
-- 更新本轮确认下来的 `business_status / purpose / prompt_source`
-
----
-
-## 七、约束与注意事项
+## 五、约束与注意事项
 
 - **路径固定**：数据库始终位于 `./db/customer.db`
 - **默认表固定**：`cs_record`
