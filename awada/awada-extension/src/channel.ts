@@ -14,6 +14,7 @@ import { awadaSetupWizard } from "./onboarding.js";
 import { awadaMessageActions } from "./message-actions.js";
 import { awadaOutbound } from "./outbound.js";
 import { probeAwada } from "./probe.js";
+import { decodeAwadaTo } from "./send.js";
 import type { ResolvedAwadaAccount, AwadaConfig } from "./types.js";
 
 const meta: ChannelMeta = {
@@ -124,6 +125,16 @@ export const awadaPlugin: ChannelPlugin<ResolvedAwadaAccount> = {
   setupWizard: awadaSetupWizard,
   outbound: awadaOutbound,
   actions: awadaMessageActions,
+  messaging: {
+    targetResolver: {
+      looksLikeId: (raw) => raw.startsWith("awada:"),
+      resolveTarget: async ({ input }) => {
+        const decoded = decodeAwadaTo(input);
+        if (!decoded) return null;
+        return { to: input, kind: "user" as const, source: "normalized" as const };
+      },
+    },
+  },
   status: {
     defaultRuntime: createDefaultChannelRuntimeState(DEFAULT_ACCOUNT_ID, { port: null }),
     buildChannelSummary: ({ snapshot }) =>

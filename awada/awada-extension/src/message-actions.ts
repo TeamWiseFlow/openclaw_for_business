@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { jsonResult, readStringParam } from "openclaw/plugin-sdk/agent-runtime";
 import type { ChannelMessageActionAdapter } from "openclaw/plugin-sdk/channel-contract";
 import { resolveAwadaAccount } from "./accounts.js";
-import { buildMediaContentFromName, sendMediaToAwada } from "./send.js";
+import { buildMediaContentFromName, decodeAwadaTo, sendMediaToAwada } from "./send.js";
 import { getCachedOutboundTarget } from "./target-cache.js";
 
 export const awadaMessageActions: ChannelMessageActionAdapter = {
@@ -29,15 +29,13 @@ export const awadaMessageActions: ChannelMessageActionAdapter = {
       throw new Error("[awada] redisUrl not configured");
     }
 
-    const userIdExternal = ctx.requesterSenderId;
-    if (!userIdExternal) {
-      throw new Error("[awada] No sender context — cannot resolve recipient");
-    }
-
-    const target = getCachedOutboundTarget(userIdExternal);
+    // Prefer the resolved target from params.to (set by core's target resolver),
+    // fall back to the in-memory cache populated on inbound messages.
+    const toRaw = readStringParam(ctx.params, "to");
+    const target = (toRaw ? decodeAwadaTo(toRaw) : null) ?? getCachedOutboundTarget(ctx.requesterSenderId ?? "");
     if (!target) {
       throw new Error(
-        `[awada] No cached outbound target for sender "${userIdExternal}". ` +
+        "[awada] Cannot resolve outbound target. " +
           "The customer must have sent a message before you can send attachments.",
       );
     }
