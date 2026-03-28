@@ -1,13 +1,15 @@
 # DECLARED_SKILLS — 声明式技能列表（external crew 专用）
 # 格式：每行一个技能名称；# 开头为注释；支持空行
-# 注意：对外 crew 的技能变更由 HRBP 管理
+# 注意：不声明 self-improving，对外 crew 不允许自我升级
 
 # 知识检索与信息获取
 nano-pdf
 xurl
 
-# MCP 服务接入（支付宝支付 MCP Server）
-mcporter
-
-# 客户数据库（SQLite，schema 由 HRBP 在招募时定义）
+# 客户数据库（SQLite，schema 由 HRBP 升级流程维护）
 customer-db
+
+# 销售流程技能
+demo_send
+exp_invite
+payment_send

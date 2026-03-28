@@ -8,6 +8,7 @@ import { resolveAwadaAccount } from "./accounts.js";
 import { fetchAudioBuffer, transcribeAudio } from "./audio-transcribe.js";
 import type { AudioObject, FileObject, ImageObject, InboundEvent } from "./redis-types.js";
 import { createAwadaReplyDispatcher } from "./reply-dispatcher.js";
+import { cacheOutboundTarget } from "./target-cache.js";
 import { getAwadaRuntime } from "./runtime.js";
 import { buildOutboundTarget, encodeAwadaTo, sendTextToAwada } from "./send.js";
 
@@ -192,6 +193,9 @@ export async function handleAwadaMessage(params: {
     platform: meta.platform,
     conversation_id: meta.conversation_id,
   });
+
+  // Cache outbound target so handleAction can reach this peer later
+  cacheOutboundTarget(meta.user_id_external, target);
 
   // ---- Handle audio: transcribe via SiliconFlow, then treat as text ----
   let audioTranscript = "";

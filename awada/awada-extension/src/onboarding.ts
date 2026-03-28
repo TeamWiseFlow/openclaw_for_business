@@ -1,34 +1,19 @@
-import type {
-  ChannelOnboardingAdapter,
-  ChannelOnboardingDmPolicy,
-  ClawdbotConfig,
-  DmPolicy,
-  WizardPrompter,
-} from "openclaw/plugin-sdk/feishu";
-import { DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/feishu";
+import type { ChannelSetupWizard, DmPolicy, OpenClawConfig } from "openclaw/plugin-sdk/setup";
+import { createTopLevelChannelDmPolicy, DEFAULT_ACCOUNT_ID } from "openclaw/plugin-sdk/setup";
 import { probeAwada } from "./probe.js";
 import type { AwadaConfig } from "./types.js";
 
 const channel = "awada" as const;
 
-function getAwadaCfg(cfg: ClawdbotConfig): AwadaConfig | undefined {
+function getAwadaCfg(cfg: OpenClawConfig): AwadaConfig | undefined {
   return cfg.channels?.awada as AwadaConfig | undefined;
 }
 
-function setAwadaDmPolicy(cfg: ClawdbotConfig, dmPolicy: DmPolicy): ClawdbotConfig {
-  return {
-    ...cfg,
-    channels: {
-      ...cfg.channels,
-      awada: {
-        ...getAwadaCfg(cfg),
-        dmPolicy,
-      },
-    },
-  };
+function isAwadaConfigured(cfg: OpenClawConfig): boolean {
+  return Boolean(getAwadaCfg(cfg)?.redisUrl?.trim());
 }
 
-function setAwadaAllowFrom(cfg: ClawdbotConfig, allowFrom: string[]): ClawdbotConfig {
+function setAwadaAllowFrom(cfg: OpenClawConfig, allowFrom: string[]): OpenClawConfig {
   return {
     ...cfg,
     channels: {
@@ -41,70 +26,67 @@ function setAwadaAllowFrom(cfg: ClawdbotConfig, allowFrom: string[]): ClawdbotCo
   };
 }
 
-async function promptAwadaAllowFrom(params: {
-  cfg: ClawdbotConfig;
-  prompter: WizardPrompter;
-}): Promise<ClawdbotConfig> {
-  const existing = getAwadaCfg(params.cfg)?.allowFrom ?? [];
-  const entry = await params.prompter.text({
-    message: "Awada allowFrom (user_id_external values, comma-separated)",
-    placeholder: "user_123, user_456",
-    initialValue: existing.join(", "),
-    validate: (value) => (String(value ?? "").trim() ? undefined : "Required"),
-  });
-  const parts = String(entry)
-    .split(/[\n,;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const unique = [...new Set([...existing, ...parts])];
-  return setAwadaAllowFrom(params.cfg, unique);
-}
-
-const dmPolicy: ChannelOnboardingDmPolicy = {
+const awadaDmPolicy = createTopLevelChannelDmPolicy({
   label: "Awada",
   channel,
   policyKey: "channels.awada.dmPolicy",
   allowFromKey: "channels.awada.allowFrom",
   getCurrent: (cfg) => (getAwadaCfg(cfg)?.dmPolicy ?? "open") as DmPolicy,
-  setPolicy: (cfg, policy) => setAwadaDmPolicy(cfg, policy),
-  promptAllowFrom: promptAwadaAllowFrom,
-};
-
-export const awadaOnboardingAdapter: ChannelOnboardingAdapter = {
-  channel,
-  getStatus: async ({ cfg }) => {
-    const awadaCfg = getAwadaCfg(cfg);
-    const redisUrl = awadaCfg?.redisUrl?.trim();
-    const configured = Boolean(redisUrl);
-
-    let probeResult = null;
-    if (configured && redisUrl) {
-      try {
-        probeResult = await probeAwada({ redisUrl });
-      } catch {
-        // ignore
-      }
-    }
-
-    const statusLines: string[] = [];
-    if (!configured) {
-      statusLines.push("Awada: needs Redis URL");
-    } else if (probeResult?.ok) {
-      statusLines.push("Awada: connected to Redis");
-    } else {
-      statusLines.push("Awada: configured (connection not verified)");
-    }
-
-    return {
-      channel,
-      configured,
-      statusLines,
-      selectionHint: configured ? "configured" : "needs Redis URL",
-      quickstartScore: configured ? 2 : 0,
-    };
+  getAllowFrom: (cfg) => getAwadaCfg(cfg)?.allowFrom,
+  promptAllowFrom: async ({ cfg, prompter }) => {
+    const existing = getAwadaCfg(cfg)?.allowFrom ?? [];
+    const entry = await prompter.text({
+      message: "Awada allowFrom (user_id_external values, comma-separated)",
+      placeholder: "user_123, user_456",
+      initialValue: existing.join(", "),
+      validate: (value) => (String(value ?? "").trim() ? undefined : "Required"),
+    });
+    const parts = String(entry)
+      .split(/[\n,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const unique = [...new Set([...existing, ...parts])];
+    return setAwadaAllowFrom(cfg, unique);
   },
+});
 
-  configure: async ({ cfg, prompter }) => {
+export const awadaSetupWizard: ChannelSetupWizard = {
+  channel,
+  resolveAccountIdForConfigure: () => DEFAULT_ACCOUNT_ID,
+  resolveShouldPromptAccountIds: () => false,
+  status: {
+    configuredLabel: "configured",
+    unconfiguredLabel: "needs Redis URL",
+    configuredHint: "configured",
+    unconfiguredHint: "needs Redis URL",
+    configuredScore: 2,
+    unconfiguredScore: 0,
+    resolveConfigured: ({ cfg }) => isAwadaConfigured(cfg),
+    resolveStatusLines: async ({ cfg, configured }) => {
+      const awadaCfg = getAwadaCfg(cfg);
+      const redisUrl = awadaCfg?.redisUrl?.trim();
+      let probeResult = null;
+      if (configured && redisUrl) {
+        try {
+          probeResult = await probeAwada({ redisUrl });
+        } catch {
+          // ignore probe errors
+        }
+      }
+      if (!configured) {
+        return ["Awada: needs Redis URL"];
+      }
+      if (probeResult?.ok) {
+        return ["Awada: connected to Redis"];
+      }
+      return ["Awada: configured (connection not verified)"];
+    },
+    resolveSelectionHint: ({ cfg }) =>
+      isAwadaConfigured(cfg) ? "configured" : "needs Redis URL",
+    resolveQuickstartScore: ({ cfg }) => (isAwadaConfigured(cfg) ? 2 : 0),
+  },
+  credentials: [],
+  finalize: async ({ cfg, prompter }) => {
     const awadaCfg = getAwadaCfg(cfg);
     const currentUrl = awadaCfg?.redisUrl?.trim() ?? "";
 
@@ -129,7 +111,7 @@ export const awadaOnboardingAdapter: ChannelOnboardingAdapter = {
       }),
     ).trim();
 
-    let next: ClawdbotConfig = {
+    let next: OpenClawConfig = {
       ...cfg,
       channels: {
         ...cfg.channels,
@@ -156,7 +138,7 @@ export const awadaOnboardingAdapter: ChannelOnboardingAdapter = {
       await prompter.note(`Connection test failed: ${String(err)}`, "Awada connection test");
     }
 
-    // Lane configuration (single lane per openclaw instance)
+    // Lane configuration
     const currentLane = awadaCfg?.lane?.trim() ?? "user";
     const laneInput = String(
       await prompter.text({
@@ -199,11 +181,9 @@ export const awadaOnboardingAdapter: ChannelOnboardingAdapter = {
       };
     }
 
-    return { cfg: next, accountId: DEFAULT_ACCOUNT_ID };
+    return { cfg: next };
   },
-
-  dmPolicy,
-
+  dmPolicy: awadaDmPolicy,
   disable: (cfg) => ({
     ...cfg,
     channels: {

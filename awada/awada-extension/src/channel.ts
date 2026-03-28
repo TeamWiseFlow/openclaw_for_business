@@ -10,9 +10,11 @@ import {
   listAwadaAccountIds,
   resolveDefaultAwadaAccountId,
 } from "./accounts.js";
-import { awadaOnboardingAdapter } from "./onboarding.js";
+import { awadaSetupWizard } from "./onboarding.js";
+import { awadaMessageActions } from "./message-actions.js";
 import { awadaOutbound } from "./outbound.js";
 import { probeAwada } from "./probe.js";
+import { decodeAwadaTo } from "./send.js";
 import type { ResolvedAwadaAccount, AwadaConfig } from "./types.js";
 
 const meta: ChannelMeta = {
@@ -33,7 +35,7 @@ export const awadaPlugin: ChannelPlugin<ResolvedAwadaAccount> = {
     chatTypes: ["direct"],
     polls: false,
     threads: false,
-    media: false,
+    media: true,
     reactions: false,
     edit: false,
     reply: false,
@@ -41,6 +43,8 @@ export const awadaPlugin: ChannelPlugin<ResolvedAwadaAccount> = {
   agentPrompt: {
     messageToolHints: () => [
       "- Awada targeting: replies are routed back to the originating WeChat user automatically.",
+      '- To send a pre-stored WeChat cloud file or image, use action="sendAttachment" with file_name="<filename>".',
+      "  Example: message(action=\"sendAttachment\", file_name=\"company_logo.jpg\")",
     ],
   },
   reload: { configPrefixes: ["channels.awada"] },
@@ -68,7 +72,7 @@ export const awadaPlugin: ChannelPlugin<ResolvedAwadaAccount> = {
     listAccountIds: (cfg) => listAwadaAccountIds(cfg),
     resolveAccount: (cfg, accountId) => resolveAwadaAccount({ cfg, accountId }),
     defaultAccountId: (cfg) => resolveDefaultAwadaAccountId(cfg),
-    setAccountEnabled: ({ cfg, enabled }) => ({
+    setAccountEnabled: ({ cfg, accountId: _accountId, enabled }) => ({
       ...cfg,
       channels: {
         ...cfg.channels,
@@ -78,7 +82,7 @@ export const awadaPlugin: ChannelPlugin<ResolvedAwadaAccount> = {
         },
       },
     }),
-    deleteAccount: ({ cfg }) => {
+    deleteAccount: ({ cfg, accountId: _accountId }) => {
       const next = { ...cfg } as ClawdbotConfig;
       const nextChannels = { ...cfg.channels };
       delete (nextChannels as Record<string, unknown>).awada;
@@ -107,7 +111,7 @@ export const awadaPlugin: ChannelPlugin<ResolvedAwadaAccount> = {
   },
   setup: {
     resolveAccountId: () => DEFAULT_ACCOUNT_ID,
-    applyAccountConfig: ({ cfg }) => ({
+    applyAccountConfig: ({ cfg, accountId: _accountId, input: _input }) => ({
       ...cfg,
       channels: {
         ...cfg.channels,
@@ -118,8 +122,19 @@ export const awadaPlugin: ChannelPlugin<ResolvedAwadaAccount> = {
       },
     }),
   },
-  onboarding: awadaOnboardingAdapter,
+  setupWizard: awadaSetupWizard,
   outbound: awadaOutbound,
+  actions: awadaMessageActions,
+  messaging: {
+    targetResolver: {
+      looksLikeId: (raw) => raw.startsWith("awada:"),
+      resolveTarget: async ({ input }) => {
+        const decoded = decodeAwadaTo(input);
+        if (!decoded) return null;
+        return { to: input, kind: "user" as const, source: "normalized" as const };
+      },
+    },
+  },
   status: {
     defaultRuntime: createDefaultChannelRuntimeState(DEFAULT_ACCOUNT_ID, { port: null }),
     buildChannelSummary: ({ snapshot }) =>

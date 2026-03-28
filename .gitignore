@@ -25,6 +25,3 @@ node_modules/
 
 # 备份文件
 *.backup
-
-# Local instruction overlays
-AGENTS.md

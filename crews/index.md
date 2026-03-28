@@ -18,7 +18,7 @@
 
 | 模板 ID | 名称 | 简介 | 类型 | 版本 |
 |---------|------|------|------|------|
-| customer-service | 客服 | 客户咨询、问题解答、工单处理，bind-only | external | OFB official |
+| sales-cs | 销售型客服 | 客户咨询、问题解答、成交导向、客户调研，bind-only | external | OFB official |
 
 ## 用户自建模板（User-created）
 

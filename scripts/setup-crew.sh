@@ -202,6 +202,7 @@ for agent_id in $BUILTIN_CREWS; do
       [ -f "$agent_dir/$f" ] && cp "$agent_dir/$f" "$dest/$f"
     done
     echo "  🔄 workspace-$agent_id config files synced from template"
+    inject_file_edit_guide "$dest/TOOLS.md"
 
     # 同步 DENIED/BUILTIN 配置（若模板有）
     if [ -f "$agent_dir/DENIED_SKILLS" ]; then
@@ -242,6 +243,7 @@ for agent_id in $BUILTIN_CREWS; do
     cp -r "$agent_dir/skills" "$dest/"
   fi
   echo "  ✅ workspace-$agent_id installed"
+  inject_file_edit_guide "$dest/TOOLS.md"
 done
 
 # ─── 2. 复制共享协议到每个已安装的内置 workspace ─────────────────
@@ -431,6 +433,8 @@ if [ -f "$CONFIG_PATH" ]; then
         default: prev.default ?? true,
         name: prev.name || 'Main Agent',
         workspace: prev.workspace || openclawHome + '/workspace-main',
+        thinkingDefault: 'high',
+        reasoningDefault: 'on',
         subagents: {
           ...(prev.subagents || {}),
           allowAgents: allowAgents,
@@ -446,6 +450,8 @@ if [ -f "$CONFIG_PATH" ]; then
         id: 'hrbp',
         name: prev.name || 'HRBP',
         workspace: prev.workspace || openclawHome + '/workspace-hrbp',
+        thinkingDefault: 'high',
+        reasoningDefault: 'on',
         subagents: {
           ...(prev.subagents || {}),
           allowAgents: ['it-engineer'],
@@ -460,6 +466,8 @@ if [ -f "$CONFIG_PATH" ]; then
         id: 'it-engineer',
         name: prev.name || 'IT Engineer',
         workspace: prev.workspace || openclawHome + '/workspace-it-engineer',
+        thinkingDefault: 'high',
+        reasoningDefault: 'on',
       };
       return applySkills(base, process.env.IT_SKILLS_RESULT);
     });
@@ -469,13 +477,23 @@ if [ -f "$CONFIG_PATH" ]; then
     const PROTECTED_IDS = new Set(['main', 'hrbp', 'it-engineer']);
     for (const agent of c.agents.list) {
       if (PROTECTED_IDS.has(agent.id)) continue;
-      if (getCrewType(agent.id) !== 'internal') continue;
-      const prevAllow = Array.isArray(agent.subagents?.allowAgents) ? agent.subagents.allowAgents : [];
-      if (!prevAllow.includes('it-engineer')) {
-        agent.subagents = {
-          ...(agent.subagents || {}),
-          allowAgents: [...new Set([...prevAllow, 'it-engineer'])],
-        };
+      const crewType = getCrewType(agent.id);
+      if (crewType === 'internal') {
+        // 非内置对内 crew：确保 it-engineer 在 allowAgents 中
+        const prevAllow = Array.isArray(agent.subagents?.allowAgents) ? agent.subagents.allowAgents : [];
+        if (!prevAllow.includes('it-engineer')) {
+          agent.subagents = {
+            ...(agent.subagents || {}),
+            allowAgents: [...new Set([...prevAllow, 'it-engineer'])],
+          };
+        }
+        // 对内 crew 默认思考/推理设置（不覆盖已有配置）
+        if (!agent.thinkingDefault) agent.thinkingDefault = 'medium';
+        if (!agent.reasoningDefault) agent.reasoningDefault = 'on';
+      } else {
+        // 对外 crew 默认思考/推理设置（不覆盖已有配置）
+        if (!agent.thinkingDefault) agent.thinkingDefault = 'medium';
+        if (!agent.reasoningDefault) agent.reasoningDefault = 'off';
       }
     }
 

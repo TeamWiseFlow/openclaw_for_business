@@ -2,7 +2,13 @@ import { randomUUID } from "crypto";
 import type { ChannelOutboundAdapter } from "openclaw/plugin-sdk/feishu";
 import { resolveAwadaAccount } from "./accounts.js";
 import { getAwadaRuntime } from "./runtime.js";
-import { decodeAwadaTo, sendTextToAwada } from "./send.js";
+import {
+  buildMediaContentFromName,
+  buildMediaContentFromUrl,
+  decodeAwadaTo,
+  sendMediaToAwada,
+  sendTextToAwada,
+} from "./send.js";
 import type { AwadaConfig } from "./types.js";
 
 import { isNoReplyText } from "./silent-reply.js";
@@ -64,8 +70,7 @@ export const awadaOutbound: ChannelOutboundAdapter = {
     });
     return { channel: "awada", messageId: streamId };
   },
-  sendMedia: async ({ cfg, to, text, accountId }) => {
-    // Awada doesn't support media uploads; send as plain text
+  sendMedia: async ({ cfg, to, text, mediaUrl, accountId }) => {
     const target = decodeAwadaTo(to);
     if (!target) {
       throw new Error(`[awada] Cannot decode target: ${to}`);
@@ -74,6 +79,41 @@ export const awadaOutbound: ChannelOutboundAdapter = {
     if (!account.redisUrl) {
       throw new Error("[awada] redisUrl not configured");
     }
+
+    // Route mediaUrl to sendMediaToAwada:
+    // - http/https URL → file_url
+    // - plain filename (no path separators) → file_name for pre-stored WeChat cloud files
+    // - local absolute path or anything else → fall back to text (not supported)
+    if (mediaUrl?.trim()) {
+      const url = mediaUrl.trim();
+      if (/^https?:\/\//i.test(url)) {
+        const media = buildMediaContentFromUrl(url);
+        const streamId = await sendMediaToAwada({
+          redisUrl: account.redisUrl,
+          target,
+          media,
+          replyToEventId: randomUUID(),
+          correlationId: randomUUID(),
+          traceId: randomUUID(),
+        });
+        return { channel: "awada", messageId: streamId };
+      }
+      if (!url.includes("/") && !url.includes("\\")) {
+        const media = buildMediaContentFromName({ file_name: url });
+        const streamId = await sendMediaToAwada({
+          redisUrl: account.redisUrl,
+          target,
+          media,
+          replyToEventId: randomUUID(),
+          correlationId: randomUUID(),
+          traceId: randomUUID(),
+        });
+        return { channel: "awada", messageId: streamId };
+      }
+      // Local path or unsupported scheme — fall through to text fallback
+    }
+
+    // No media reference — fall back to text body
     const body = text?.trim() ?? "[media]";
     const streamId = await sendChunked({
       cfg,

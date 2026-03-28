@@ -117,15 +117,42 @@ const IMAGE_EXTENSIONS = new Set([
 ]);
 
 /**
- * Build a ContentObject from a media URL, guessing type from the extension.
- * Image extensions → ImageObject; everything else → FileObject.
+ * Build a ContentObject from a file_name (and optional file_id), for pre-stored
+ * WeChat cloud files. Type is determined by extension: image extensions → ImageObject,
+ * everything else → FileObject.
+ */
+export function buildMediaContentFromName(params: {
+  file_name: string;
+  file_id?: string;
+}): ImageObject | FileObject {
+  const { file_name, file_id } = params;
+  const ext = file_name.slice(file_name.lastIndexOf(".")).toLowerCase();
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    return {
+      type: "image",
+      file_name,
+      ...(file_id ? { file_id } : {}),
+    };
+  }
+  return {
+    type: "file",
+    file_name,
+    ...(file_id ? { file_id } : {}),
+  };
+}
+
+/**
+ * Build a ContentObject from a URL.
+ * file_name is extracted from the URL path; file_url is set to the URL.
+ * Type is determined by extension: image extensions → ImageObject, everything else → FileObject.
  */
 export function buildMediaContentFromUrl(url: string): ImageObject | FileObject {
-  const pathname = new URL(url).pathname.toLowerCase();
-  const ext = pathname.slice(pathname.lastIndexOf("."));
+  const pathname = new URL(url).pathname;
+  const raw = pathname.split("/").pop() ?? "";
+  const file_name = raw || "file";
+  const ext = file_name.slice(file_name.lastIndexOf(".")).toLowerCase();
   if (IMAGE_EXTENSIONS.has(ext)) {
-    return { type: "image", file_url: url };
+    return { type: "image", file_name, file_url: url };
   }
-  const fileName = pathname.split("/").pop() || undefined;
-  return { type: "file", file_url: url, file_name: fileName };
+  return { type: "file", file_name, file_url: url };
 }

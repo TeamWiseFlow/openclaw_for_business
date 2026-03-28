@@ -584,6 +584,9 @@ if [ "$CREW_TYPE" = "internal" ]; then
 fi
 
 echo ""
+# 向 TOOLS.md 注入文件操作规范（幂等）
+inject_file_edit_guide "$WORKSPACE/TOOLS.md"
+
 echo "✅ Agent '$AGENT_ID' registered successfully! (type: $CREW_TYPE)"
 echo ""
 echo "⚠️  Restart Gateway to apply changes: ./scripts/dev.sh gateway"
