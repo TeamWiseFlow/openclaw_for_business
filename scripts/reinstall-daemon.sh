@@ -9,6 +9,22 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OPENCLAW_CONFIG_PATH_DEFAULT="${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}"
 OPENCLAW_STATE_DIR_DEFAULT="${OPENCLAW_STATE_DIR:-$HOME/.openclaw}"
 SYSTEMD_ENV_FILE="${OPENCLAW_STATE_DIR_DEFAULT}/daemon.env"
+SKIP_ADDONS=false
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --skip-addons)
+      SKIP_ADDONS=true
+      shift
+      ;;
+    *)
+      echo "❌ Unknown option: $1"
+      echo "Usage: $0 [--skip-addons]"
+      echo "  --skip-addons  Skip apply-addons.sh (use when upgrade.sh already ran it)"
+      exit 1
+      ;;
+  esac
+done
 
 collect_env_refs_from_config() {
   local config_path="$1"
@@ -294,7 +310,11 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
 fi
 
 # 安装 addon + 同步 Agent 系统（apply-addons.sh 末尾会自动调 setup-crew.sh）
-"$PROJECT_ROOT/scripts/apply-addons.sh"
+if [ "$SKIP_ADDONS" = "true" ]; then
+  echo "⏭️  Skipping apply-addons (--skip-addons)"
+else
+  "$PROJECT_ROOT/scripts/apply-addons.sh"
+fi
 
 if [ "$(uname -s)" = "Linux" ]; then
   # config fallback：running config 不存在时从 config-templates 扫描 env refs
