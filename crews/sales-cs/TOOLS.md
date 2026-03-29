@@ -25,14 +25,21 @@
 
 系统 hook 会在对话前自动：
 - 确保数据库与 `cs_record` 可用
-- 为当前客户创建默认记录（如不存在）
+- 为当前客户创建或更新记录
 - 注入当前客户的 `peer / business_status / purpose / prompt_source / club_in`
-- 对支付成功 / club 加入等事件进行静默写库
+- 对 `/payment_success` / `/club_join` 等系统指令进行静默写库（这些是平台控制命令，agent 不会收到）
+
+**客户标识符说明**：
+
+| 标识符 | 来源 | 用途 |
+|--------|------|------|
+| `peer` | 系统注入的 `[CustomerDB].peer` | 所有 SQL 查询和写库的 WHERE 条件 |
+| `user_id_external` | 消息上下文 Sender 块的 `id` 字段 | 需要与 awada 平台交互的技能（如 exp_invite） |
 
 **agent 侧需要做的事**：
-- 把注入的 CustomerDB 字段视为当前客户状态的唯一来源
+- 把注入的 `[CustomerDB]` 字段视为当前客户状态的唯一来源
 - 仅在本轮拿到更明确的信息时更新 `business_status / purpose / prompt_source`
-- 写库时始终使用当前会话对应的同一个 `peer`
+- 写库时 WHERE 条件始终使用 `[CustomerDB].peer`
 
 **调用方式**（通过 `ALLOWED_COMMANDS` 放行的精确白名单）：
 
@@ -45,7 +52,7 @@ bash ./skills/customer-db/scripts/db.sh <subcommand>
 | `tables` | 列出所有表 | `db.sh tables` |
 | `describe <table>` | 查看表结构 | `db.sh describe cs_record` |
 | `schema` | 显示完整 schema | `db.sh schema` |
-| `sql "<SQL>"` | 执行 DML | `db.sh sql "SELECT * FROM cs_record WHERE peer='xxx'"` |
+| `sql "<SQL>"` | 执行 DML | `db.sh sql "SELECT * FROM cs_record WHERE peer='<peer>'"` |
 
 **约束**：
 - 仅允许 `SELECT / INSERT / UPDATE / DELETE`，DDL 语句会被拒绝

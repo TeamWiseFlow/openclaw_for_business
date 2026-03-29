@@ -12,14 +12,14 @@ description: >
 ## 用途
 当客户希望进一步了解产品形态、看完 demo 后仍有较大疑问，且明确同意加入体验群时，发送体验群邀请。
 
-## 调用方式
+## 客户标识提取规则
+此处必须使用 **awada 原始用户标识**（`user_id_external`），即每轮对话上下文中 Sender 块的 `id` 字段值，**不是** [CustomerDB].peer。
 
 ```bash
-bash ./skills/exp_invite/scripts/invite.sh --user-id-external "<meta.user_id_external>"
+bash ./skills/exp_invite/scripts/invite.sh --user-id-external "<Sender.id>"
 ```
 
-## 客户标识提取规则
-这里一定要原样使用 `meta.user_id_external` 
+> 说明：`peer` 是数据库主键（经过安全过滤），`Sender.id` 是 awada 平台的原始用户 ID。exp_invite 需要原始 ID 才能正确路由邀请动作。
 
 ## 行为规则
 - 邀请消息不是发给用户看的自然语言，而是 awada 控制消息：

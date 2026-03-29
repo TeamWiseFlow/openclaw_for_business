@@ -61,4 +61,4 @@ if [ -z "$resolved" ]; then
   exit 1
 fi
 
-printf 'awada:direct:%s\n' "$resolved"
+printf '%s\n' "$resolved"

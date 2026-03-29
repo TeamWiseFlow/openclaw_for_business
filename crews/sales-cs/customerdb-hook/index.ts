@@ -24,8 +24,7 @@ function extractSuffixFromSessionKey(sessionKey?: string): string | null {
 }
 
 function resolvePeerFromSessionKey(sessionKey?: string): string | null {
-  const suffix = extractSuffixFromSessionKey(sessionKey);
-  return suffix ? `awada:direct:${suffix}` : null;
+  return extractSuffixFromSessionKey(sessionKey);
 }
 
 function resolvePeerForCommand(ctx: {
@@ -69,7 +68,7 @@ function sqlQuote(input: string): string {
 
 function ensurePeerRow(dbFile: string, peer: string) {
   sqliteExec(dbFile, [
-    `INSERT OR IGNORE INTO cs_record (peer, business_status, purpose, prompt_source) VALUES (${sqlQuote(peer)}, 'free', '', '');`,
+    `INSERT INTO cs_record (peer, business_status, purpose, prompt_source) VALUES (${sqlQuote(peer)}, 'free', '', '') ON CONFLICT(peer) DO UPDATE SET updated_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime');`,
   ]);
 }
 
@@ -109,8 +108,8 @@ function selectCustomerRow(dbFile: string, peer: string): CustomerRow | null {
 
 const STATIC_RULES = [
   "CustomerDB 规则（每轮适用）：",
-  "- [CustomerDB] 块中的字段是该客户状态的唯一来源。",
-  "- 本轮如需写库，必须使用同一个 peer。",
+  "- [CustomerDB].peer 是当前客户在数据库中的主键，用于所有 SQL 查询和写库操作。",
+  "- Sender 块中的 id（即 user_id_external）是 awada 原始用户标识，用于需要与 awada 交互的技能（如 exp_invite）。",
   "- 仅在信息更明确时更新 business_status/purpose/prompt_source。",
   "- 字段为空时不要臆测。",
 ].join("\n");
