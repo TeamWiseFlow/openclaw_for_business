@@ -282,7 +282,7 @@ export async function handleAwadaMessage(params: {
 
   // Build agent envelope
   const envelopeOptions = core.channel.reply.resolveEnvelopeFormatOptions(cfg);
-  const messageBody = `${meta.user_id_external}: ${displayText}`;
+  const messageBody = displayText;
   const body = core.channel.reply.formatAgentEnvelope({
     channel: "Awada",
     from: awadaFrom,

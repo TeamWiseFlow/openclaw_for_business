@@ -367,16 +367,10 @@
       "gemini": {
         "enabled": false
       },
-      "openai-image-gen": {
-        "enabled": false
-      },
       "openai-whisper": {
         "enabled": false
       },
       "openai-whisper-api": {
-        "enabled": false
-      },
-      "nano-banana-pro": {
         "enabled": false
       },
       "voice-call": {
@@ -433,6 +427,9 @@
     "entries": {
       "feishu": {
         "enabled": true
+      },
+      "xai": {
+        "enabled": false
       }
     }
   },

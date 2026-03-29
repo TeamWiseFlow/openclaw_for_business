@@ -166,7 +166,7 @@ echo ""
 echo "✅ Upgrade complete!"
 if [ "$OPENCLAW_UPDATED" = "true" ]; then
   echo "Next steps — openclaw engine was updated; reinstall daemon to refresh service unit:"
-  echo "  Production: cd $PROJECT_ROOT && ./scripts/reinstall-daemon.sh"
+  echo "  Production: cd $PROJECT_ROOT && ./scripts/reinstall-daemon.sh --skip-addons"
   echo "  Dev mode:   cd $PROJECT_ROOT && ./scripts/dev.sh gateway"
 else
   echo "Next steps — only OFB config updated; a simple service restart is enough:"

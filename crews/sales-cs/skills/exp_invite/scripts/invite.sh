@@ -1,13 +1,19 @@
 #!/bin/bash
 # Send awada invite control message and update customer status to exp_invited.
-# exp_invite must and only use meta.user_id_external.
+# --peer: DB primary key (from [CustomerDB].peer), used for all DB operations.
+# --user-id-external: raw awada user ID (from Sender.id), used for the invite routing message.
 set -euo pipefail
 
+PEER=""
 USER_ID_EXTERNAL=""
 GROUP_NAME="风暴眼（wiseflow情报小站）"
 
 while [ $# -gt 0 ]; do
   case "$1" in
+    --peer)
+      PEER="${2:-}"
+      shift 2
+      ;;
     --user-id-external)
       USER_ID_EXTERNAL="${2:-}"
       shift 2
@@ -23,15 +29,18 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+if [ -z "$PEER" ]; then
+  echo "❌ --peer is required (use [CustomerDB].peer)" >&2
+  exit 1
+fi
+
 if [ -z "$USER_ID_EXTERNAL" ]; then
-  echo "❌ --user-id-external is required" >&2
+  echo "❌ --user-id-external is required (use Sender.id)" >&2
   exit 1
 fi
 
 WORKDIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$WORKDIR"
-
-PEER="$(bash ./skills/customer-db/scripts/peer.sh --user-id-external "$USER_ID_EXTERNAL")"
 
 bash ./skills/customer-db/scripts/db.sh ensure >/dev/null
 

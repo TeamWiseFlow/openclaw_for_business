@@ -2,8 +2,8 @@
 name: customer-db
 description: >
   Maintain a persistent SQLite customer database within the sales-cs workspace.
-  Use the current per-channel-peer session identity as the customer key, ensure
-  the database is initialized, then query and update cs_record on every round.
+  The system hook injects peer (DB primary key) and the Sender block provides
+  user_id_external (raw awada user ID). Use peer for all DB operations.
 ---
 
 # 客户数据库管理（sales-cs 专用）
@@ -14,47 +14,41 @@ description: >
 - `./db/customer.db`
 - schema 文件：`./db/schema.sql`
 
-默认表：`cs_record`
+默认表：`cs_record`，主键列：`peer`
 
 ---
 
-## 一、 按 peer 查询客户状态
+## 一、两个重要标识符（必读）
 
-当前系统已启用 `dmScope: per-channel-peer`，因此你必须把**当前 peer**视为客户唯一键。
+本系统中客户有两个不同的标识符，用途不同，不可混用：
 
-对于 awada 直聊，peer 一般形如：
-
-```text
-awada:direct:<user_id_external>
-```
-
-查询示例：
+### peer（来自 [CustomerDB] 块）
+数据库主键。由系统 hook 从当前会话 sessionKey 中提取并注入，是 `cs_record` 表的 `peer` 列的值。所有 SQL 查询和写库操作必须使用此值。
 
 ```bash
-bash ./skills/customer-db/scripts/db.sh sql "SELECT peer, business_status, purpose, prompt_source, created_at, updated_at FROM cs_record WHERE peer = '<peer>'"
+bash ./skills/customer-db/scripts/db.sh sql "SELECT ... FROM cs_record WHERE peer = '<[CustomerDB].peer>'"
 ```
+
+### user_id_external（来自 Sender 块的 `id` 字段）
+awada 原始用户标识，由 awada-server 直接提供。每轮对话开始时，openclaw 会在消息上下文中注入 Sender 信息块：
+
+```json
+Sender (untrusted metadata):
+{
+  "label": "...",
+  "id": "<user_id_external>",
+  "name": "..."
+}
+```
+
+需要与 awada 平台交互的技能（如 `exp_invite`）必须使用此值，而不是 `peer`。
 
 ---
 
-## 二、没有记录时插入默认值
-
-如果查询结果为空，则插入：
-
-```bash
-bash ./skills/customer-db/scripts/db.sh sql "INSERT INTO cs_record (peer, business_status, purpose, prompt_source) VALUES ('<peer>', 'free', '', '')"
-```
-
-默认值说明：
-- `business_status = 'free'`
-- `purpose = ''`
-- `prompt_source = ''`
-
----
-
-## 三、字段含义
+## 二、字段含义
 
 ### peer
-客户唯一标识，对应 per-channel-peer 会话键。
+当前客户数据库主键，等于 awada sessionKey 中的用户标识（经过安全过滤后的形式）。
 
 ### business_status
 表示客户商业推进深度：
@@ -64,13 +58,11 @@ bash ./skills/customer-db/scripts/db.sh sql "INSERT INTO cs_record (peer, busine
 - `subs`：已进入正式订阅/购买阶段
 
 ### club_in
-- `club` 加入日期，格式建议为 `YYYY-MM-DD`
+- `club` 加入日���，格式建议为 `YYYY-MM-DD`
 - 用于后续跟进 club 一年有效期的过期管理
 
 ### purpose
-客户主要业务应用场景。具体口径与细分差异以客服手册为准。
-
-当前可作为通用示例的方向包括：
+客户主要业务应用场景，例如：
 - 线上获客
 - 竞争对手监控
 - 行业情报获取
@@ -88,11 +80,11 @@ bash ./skills/customer-db/scripts/db.sh sql "INSERT INTO cs_record (peer, busine
 
 ### created_at / updated_at
 - `created_at`：首次建档时间
-- `updated_at`：最近更新时间
+- `updated_at`：最近对话时间（每次收到消息由 hook 自动更新）
 
 ---
 
-## 四、【重要】每轮对话结束时更新记录
+## 三、【重要】每轮对话结束时更新记录
 
 每轮结束前，根据本轮对话进展更新：
 - `business_status`
@@ -103,6 +95,7 @@ bash ./skills/customer-db/scripts/db.sh sql "INSERT INTO cs_record (peer, busine
 - 只在拿到**更明确的信息**时更新
 - 不要用空字符串覆盖已有值
 - 不要根据模糊猜测改写已有信息
+- **写库时始终使用 `[CustomerDB].peer` 作为 WHERE 条件**
 
 更新示例：
 
@@ -116,7 +109,7 @@ bash ./skills/customer-db/scripts/db.sh sql "UPDATE cs_record SET business_statu
 
 ---
 
-## 五、约束与注意事项
+## 四、约束与注意事项
 
 - **路径固定**：数据库始终位于 `./db/customer.db`
 - **默认表固定**：`cs_record`
@@ -124,3 +117,4 @@ bash ./skills/customer-db/scripts/db.sh sql "UPDATE cs_record SET business_statu
 - **schema 变更禁止自改**：若需修改结构，必须由 HRBP 升级流程处理
 - **不得向用户暴露内部表结构和内部状态字段**
 - **会话隔离必须遵守**：不同 peer 的数据不能混用
+- **初始化和默认记录创建由系统 hook 自动处理**，无需手动 ensure 或插入默认行
