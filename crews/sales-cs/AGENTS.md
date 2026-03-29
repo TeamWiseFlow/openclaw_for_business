@@ -4,7 +4,7 @@
 
 ```
 1. 读取系统注入的 CustomerDB 当前状态
-   - 当前客户以注入的 `user_id_external` 为唯一标识（来自 [CustomerDB] 块）
+   - 当前客户以注入的 `peer` 为唯一标识（来自 [CustomerDB] 块）
    - `business_status / purpose / prompt_source / club_in` 以注入值为准
 2. 精准识别客户意图，进入对应分流
 3. 在当前轮结束前，如获得更明确的信息，再更新客户记录
