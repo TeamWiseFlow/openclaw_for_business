@@ -184,36 +184,8 @@ for agent_id in $BUILTIN_CREWS; do
 
   if [ -d "$dest" ] && [ "$FORCE" != "true" ]; then
     echo "  ⚠️  workspace-$agent_id already exists, keeping user files (use --force to overwrite)"
-
-    # 即使不 --force，也同步内置技能目录，确保内置脚本更新能下发到运行时 workspace
-    if [ -d "$agent_dir/skills" ]; then
-      mkdir -p "$dest/skills"
-      for skill_dir in "$agent_dir"/skills/*/; do
-        [ -d "$skill_dir" ] || continue
-        skill_name="$(basename "$skill_dir")"
-        rm -rf "$dest/skills/$skill_name"
-        cp -r "$skill_dir" "$dest/skills/$skill_name"
-      done
-      echo "  🔄 workspace-$agent_id built-in skills synced"
-    fi
-
-    # 配置类文件始终从模板刷新（MEMORY.md / USER.md 是运行时状态，保持不动）
-    for f in AGENTS.md SOUL.md TOOLS.md IDENTITY.md HEARTBEAT.md TASKS.md; do
-      [ -f "$agent_dir/$f" ] && cp "$agent_dir/$f" "$dest/$f"
-    done
-    echo "  🔄 workspace-$agent_id config files synced from template"
+    # 仅做幂等注入（有标记则跳过，不覆盖用户编辑的内容）
     inject_file_edit_guide "$dest/TOOLS.md"
-
-    # 同步 DENIED/BUILTIN 配置（若模板有）
-    if [ -f "$agent_dir/DENIED_SKILLS" ]; then
-      cp "$agent_dir/DENIED_SKILLS" "$dest/"
-    fi
-    if [ -f "$agent_dir/BUILTIN_SKILLS" ]; then
-      cp "$agent_dir/BUILTIN_SKILLS" "$dest/"
-    fi
-    if [ -f "$agent_dir/ALLOWED_COMMANDS" ]; then
-      cp "$agent_dir/ALLOWED_COMMANDS" "$dest/"
-    fi
     continue
   fi
 

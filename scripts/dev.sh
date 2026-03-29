@@ -33,10 +33,7 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
   ' "$CONFIG_PATH"
 fi
 
-# 安装多 Agent 系统（幂等，已存在的 workspace 不覆盖）
-"$PROJECT_ROOT/scripts/setup-crew.sh"
-
-# Apply addons (overrides + patches + skills + agents)
+# Apply addons (overrides + patches + skills + agents)，内含 setup-crew.sh
 "$PROJECT_ROOT/scripts/apply-addons.sh"
 
 ACCESS_URL="http://127.0.0.1:18789"
